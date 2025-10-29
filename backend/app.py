@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean
@@ -34,8 +34,8 @@ class FileDB(Base):
 
 
 # ----------------- DB 초기화 -----------------
-#Base.metadata.drop_all(bind=engine)
-Base.metadata.create_all(bind=engine)
+Base.metadata.drop_all(bind=engine)
+
 
 
 # ----------------- 유틸 함수 -----------------
@@ -79,13 +79,27 @@ async def upload_file(file: UploadFile = File(...)):
         # ✅ 1️⃣ ZIP 파일 처리
         if ext == "zip":
             zip_root_name = os.path.splitext(file.filename)[0]
-
+            
+            def fix_zip_filename(name: str) -> str:
+                try:
+                    # 이미 한글이 포함되어 있으면 그대로 반환
+                    if any('\uac00' <= ch <= '\ud7a3' for ch in name):
+                        return name
+                    # 깨진 경우 복원 시도
+                    try:
+                        return name.encode('cp437').decode('utf-8')
+                    except UnicodeDecodeError:
+                        return name.encode('cp437').decode('cp949')
+                except Exception:
+                    return name
+            
             with zipfile.ZipFile(save_path, "r") as z:
-                file_list = [
-                    info.filename.replace("\\", "/")
-                    for info in z.infolist()
-                    if not info.is_dir() and info.filename.lower().endswith(".pdf")
-                ]
+                file_list = []
+                for info in z.infolist():
+                    if not info.is_dir() and info.filename.lower().endswith(".pdf"):
+                        fixed_name = fix_zip_filename(info.filename)
+                        file_list.append(fixed_name.replace("\\", "/"))
+
 
                 added_files = 0  # 몇 개 추가됐는지 카운트
 
@@ -157,6 +171,21 @@ def get_files():
     ]
 
 
+#db 제거 하는용도
+@app.delete("/remove")
+def remove_file(path: str = Query(...)):
+    db = SessionLocal()
+    try:
+        deleted_count = db.query(FileDB).filter(FileDB.filepath == path).delete()
+        db.commit()
+        print(f"🗑️ 삭제된 행 개수: {deleted_count}")
+        return {"message": "삭제 완료", "deleted": deleted_count}
+    except Exception as e:
+        db.rollback()
+        print(f"❌ 삭제 오류: {e}")
+        return {"error": str(e)}
+    finally:
+        db.close()
 
 
 
