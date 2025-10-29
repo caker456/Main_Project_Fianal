@@ -10,6 +10,10 @@ pip install psycopg2-binary
 pip install fastapi uvicorn sqlalchemy
 
 frontend
+pip install passlib[bcrypt]==1.7.4
+pip install bcrypt==4.0.1
+
+
 
 npm run dev
 
