@@ -1,6 +1,7 @@
 """pip install psycopg2 or""" 
 
 backend
+python app.py
 
 postgre v18
 dbname="postgres",user="postgres",password="1234",host="localhost",port="5432"
