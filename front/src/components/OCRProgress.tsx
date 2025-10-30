@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 
 interface OCRProgressProps {
+  selectedFiles: Set<string>;
   totalFiles: number;
   onCancel?: () => void;
   onComplete?: () => void;
@@ -13,9 +14,11 @@ interface FileOCRStatus {
   pagesProcessed?: number;
   totalPages?: number;
   error?: string;
+  fpath : string;
 }
 
 export function OCRProgress({
+  selectedFiles,
   totalFiles,
   onCancel,
   onComplete
@@ -25,81 +28,82 @@ export function OCRProgress({
   const [filesProgress, setFilesProgress] = useState<FileOCRStatus[]>([]);
   const [startTime] = useState(new Date());
   const [estimatedEndTime, setEstimatedEndTime] = useState<Date>(new Date(Date.now() + 3 * 60 * 1000));
+  
+ 
 
   useEffect(() => {
-    // 파일 진행 상태 초기화
-    const initialProgress: FileOCRStatus[] = [];
-    for (let i = 0; i < totalFiles; i++) {
-      initialProgress.push({
-        fileName: `문서${i + 1}.pdf`,
-        status: 'waiting',
-        progress: 0,
-        totalPages: Math.floor(Math.random() * 10) + 5, // 5~14페이지
-        pagesProcessed: 0
-      });
-    }
-    setFilesProgress(initialProgress);
+  let fileIndex = 0;
+  let progress = 0;
+  
+  // 상태 초기화
+  const initialProgress: FileOCRStatus[] = Array.from(selectedFiles).map((path, i) => ({
+    fileName: path.split(/[\\/]/).pop() ?? `문서${i + 1}.pdf`,
+    status: 'waiting',
+    progress: 0,
+    totalPages: Math.floor(Math.random() * 10) + 5,
+    pagesProcessed: 0,
+    fpath : path
+  }));
+  setFilesProgress(initialProgress);
 
-    // 예상 종료 시간 계산 (파일당 약 20초)
-    const estimatedDuration = totalFiles * 20 * 1000;
-    setEstimatedEndTime(new Date(Date.now() + estimatedDuration));
+  const estimatedDuration = totalFiles * 20 * 1000;
+  setEstimatedEndTime(new Date(Date.now() + estimatedDuration));
 
-    // OCR 진행 시뮬레이션
-    let fileIndex = 0;
-    let progress = 0;
-
-    const interval = setInterval(() => {
-      if (fileIndex >= totalFiles) {
+  const interval = setInterval(() => {
+    setFilesProgress(prev => {
+      if (fileIndex >= prev.length) {
         clearInterval(interval);
-        return;
+        return prev;
       }
 
-      progress += 10;
+      const newProgress = [...prev];
+      const currentFilePages = newProgress[fileIndex]?.totalPages ?? 10;
 
-      setFilesProgress(prev => {
-        const newProgress = [...prev];
-        const currentFilePages = newProgress[fileIndex].totalPages || 10;
-        const processedPages = Math.floor((progress / 100) * currentFilePages);
+      newProgress[fileIndex] = {
+        ...newProgress[fileIndex],
+        status: 'processing',
+        progress: newProgress[fileIndex].progress + 10,
+        pagesProcessed: Math.floor(((newProgress[fileIndex].progress + 10) / 100) * currentFilePages)
+      };
 
-        newProgress[fileIndex] = {
-          ...newProgress[fileIndex],
-          status: 'processing',
-          progress: progress,
-          pagesProcessed: processedPages
-        };
-
-        return newProgress;
+      if (newProgress[fileIndex].progress >= 100) {
+        newProgress[fileIndex].status = 'completed';
+        console.log("이건뭐냐?",newProgress[fileIndex],"그리고 애도??",newProgress[fileIndex].fpath);
+        const formData = new FormData();
+      const fetchFiles = async () => {
+        formData.append("filepath",newProgress[fileIndex].fpath)
+      try {
+        const res = await fetch("http://localhost:8000/api/ocrcompleted", {
+        method: "POST",
+        body: formData,
       });
+      const data = await res.json();
+    } catch (err) {
 
-      if (progress >= 100) {
-        // OCR 완료
-        setFilesProgress(prev => {
-          const newProgress = [...prev];
-          newProgress[fileIndex] = {
-            ...newProgress[fileIndex],
-            status: 'completed',
-            progress: 100,
-            pagesProcessed: newProgress[fileIndex].totalPages
-          };
-          return newProgress;
-        });
+    }
+    };
 
-        // 다음 파일로 이동
+    fetchFiles();
+    
+          
+
+
+
+
         fileIndex++;
-        setCurrentFile(fileIndex + 1);
-        progress = 0;
       }
 
-      // 전체 진행률 업데이트
-      const completedFiles = filesProgress.filter(f => f.status === 'completed').length;
-      const currentFileProgress = progress / 100;
-      const totalProgress = ((completedFiles + currentFileProgress) / totalFiles) * 100;
-      setOverallProgress(Math.min(totalProgress, 100));
+      return newProgress;
+    });
+  }, 150);
 
-    }, 150);
+  // ✅ cleanup: 이전 interval 완전 제거
+  return () => {
+    clearInterval(interval);
+    setFilesProgress([]); // 상태 초기화 (중복 방지)
+  };
+}, [selectedFiles, totalFiles]);
 
-    return () => clearInterval(interval);
-  }, [totalFiles, filesProgress]);
 
   const completedCount = filesProgress.filter(f => f.status === 'completed').length;
   const errorCount = filesProgress.filter(f => f.status === 'error').length;
@@ -223,7 +227,12 @@ export function OCRProgress({
                   <div style={{ padding: '12px' }}>
                     <div style={{ color: '#333333', fontSize: '12px', fontFamily: 'Roboto', fontWeight: '700', marginBottom: '12px' }}>
                       파일별 OCR 진행 상태
+                      
                     </div>
+                    <div>
+                        
+                      </div>
+
                     {filesProgress.map((file, index) => (
                       <div
                         key={index}
@@ -255,7 +264,7 @@ export function OCRProgress({
                           {file.progress}%
                         </div>
                       </div>
-                    ))}
+                    ))} 
                   </div>
                 </div>
 

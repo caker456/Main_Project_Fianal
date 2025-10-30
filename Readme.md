@@ -15,9 +15,7 @@ frontend
 
 pip install passlib[bcrypt]==1.7.4
 pip install bcrypt==4.0.1
-
-
-pip install itsdangerous???
+pip install pdf2image
 
 =======
 npm install vite --save-dev
