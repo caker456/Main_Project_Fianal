@@ -13,8 +13,8 @@ import {
 } from 'lucide-react';
 
 interface SidebarProps {
-  currentPage: 'home' | 'management' | 'history' | 'documents' | 'statistics';
-  onPageChange: (page: 'home' | 'management' | 'history' | 'documents' | 'statistics') => void;
+  currentPage: 'home' | 'management' | 'history' | 'documents' | 'statistics' | 'profile';
+  onPageChange: (page: 'home' | 'management' | 'history' | 'documents' | 'statistics' | 'profile') => void;
 }
 
 export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
@@ -71,7 +71,13 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
           onClick={() => onPageChange('statistics')}
           isCollapsed={isCollapsed}
         />
-        <SidebarItem icon={<Users />} label="사용자" isCollapsed={isCollapsed} />
+        <SidebarItem
+          icon={<Users />}
+          label="사용자"
+          active={currentPage === 'profile'}  
+          onClick={() => onPageChange('profile')} 
+          isCollapsed={isCollapsed}
+        />
         <SidebarItem icon={<Bell />} label="알림" isCollapsed={isCollapsed} />
         <SidebarItem icon={<Settings />} label="설정" isCollapsed={isCollapsed} />
         <SidebarItem icon={<HelpCircle />} label="도움말" isCollapsed={isCollapsed} />
