@@ -92,6 +92,7 @@ export function DocumentClassification() {
         if (!res.ok) throw new Error("서버 응답 실패");
         const data = await res.json(); // 예: [{ filepath: "test/test1/새 폴더/sample.pdf" }, ...]
         const filePaths = data.map((f: any) => f.filepath);
+        console.log("텟?",filePaths)
         const tree = buildFolderTree(filePaths);
         console.log("🌲 DB에서 불러온 폴더 트리:", tree);
         setFolderStructure(tree);
@@ -209,6 +210,7 @@ export function DocumentClassification() {
 
     const formData = new FormData();
     formData.append("file", file);
+    console.log("서버 응답????????", file);
 
     try {
       const res = await fetch("http://localhost:8000/api/upload", {
@@ -216,7 +218,7 @@ export function DocumentClassification() {
         method: "POST",
         body: formData,
       });
-
+          
       // FastAPI 응답 JSON 파싱
       const data = await res.json();
       console.log("서버 응답:", data);
