@@ -25,8 +25,14 @@ def remove_file(path: str = Query(..., description="삭제할 파일 경로")):
         # 삭제 실행
         cur.execute("DELETE FROM pdf_documents WHERE filename = %s", (path,))
         conn.commit()
+        if os.path.exists(path):
+            os.remove(path)
+            print(f"🗑️ 실제 파일 삭제 완료: {path}")
+        else:
+            print(f"⚠️ 실제 파일 없음: {path}")
 
         return {"success": True, "message": f"{path} 삭제 완료"}
+ 
 
     except Exception as e:
         if conn:
@@ -90,7 +96,7 @@ async def ocrcomplet(filepath: str = Form(...),
 
         INSERT INTO ocr_results (doc_id,full_text, page_data, ocr_engine, processing_time, created_at)
         VALUES (%s,%s, %s, %s, %s, %s)
-        """, (full_text, page_data, ocr_engine, processing_time,datetime.now()))
+        """, (doc_id,full_text, page_data, ocr_engine, processing_time,datetime.now()))
         conn.commit()
     except Exception as e:
         conn.rollback()
