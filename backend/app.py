@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from router import files
+from router.router_m import router
 from db import init_db
 
 app = FastAPI(title="File Upload API")
@@ -17,7 +17,7 @@ app.add_middleware(
 init_db()
 
 # ✅ 라우터 등록
-app.include_router(files.router, prefix="/api", tags=["Files"])
+app.include_router(router, prefix="/api", tags=["Files"])
 
 # ✅ 메인 실행
 if __name__ == "__main__":
