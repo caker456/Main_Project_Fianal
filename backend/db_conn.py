@@ -37,20 +37,20 @@ class PostgresDB:
         """
         self.postgre_pool.closeall()
         print("모든 커넥션 종료")
-
+db_pool = PostgresDB()
 # ===== 사용 예시 =====
 if __name__ == "__main__":
-    db = PostgresDB()
+
 
     # 커넥션 가져오기
-    conn = db.get_conn()
+    conn = db_pool.get_conn()
     cursor = conn.cursor()
 
     cursor.execute("SELECT version();")
     print(cursor.fetchone())
 
     cursor.close()
-    db.release_conn(conn)
+    db_pool.release_conn(conn)
 
     # 모든 커넥션 종료
-    db.close_all()
+    db_pool.close_all()

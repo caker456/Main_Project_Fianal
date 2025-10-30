@@ -90,12 +90,9 @@ export function DocumentClassification() {
       try {
         const res = await fetch("http://localhost:8000/api/files"); // ← FastAPI 엔드포인트
         if (!res.ok) throw new Error("서버 응답 실패");
-
         const data = await res.json(); // 예: [{ filepath: "test/test1/새 폴더/sample.pdf" }, ...]
-
         const filePaths = data.map((f: any) => f.filepath);
         const tree = buildFolderTree(filePaths);
-
         console.log("🌲 DB에서 불러온 폴더 트리:", tree);
         setFolderStructure(tree);
       } catch (err) {
@@ -144,15 +141,15 @@ export function DocumentClassification() {
     console.log("📁 루트 없는 최종 트리 구조:", roots);
     return roots;
   };
-  const OcrProgresssClick = async() =>{
-
+  const OcrProgressClick = async() =>{
     
-    console.log("지금 파일정보가 어캐돼",selectedFolderFiles)
+    
+   
   }
   const RemoveClick = async () => {
   // ✅ 현재 선택된 폴더 안의 파일 경로들을 가져옴
     const selectedFolderFiles = displayFiles.map((file) => file.path);
-
+   
     if (selectedFolderFiles.length === 0) {
       alert("삭제할 파일이 없습니다. 먼저 폴더를 선택하세요.");
       return;
@@ -161,7 +158,7 @@ export function DocumentClassification() {
   // 여러 파일을 순차적으로 삭제하는 함수
   const deleteMultipleFiles = async (paths: string[]) => {
     for (const path of paths) {
-      const res = await fetch(`http://127.0.0.1:8000/remove?path=${encodeURIComponent(path)}`, {
+      const res = await fetch(`http://127.0.0.1:8000/api/remove?path=${encodeURIComponent(path)}`, {
         method: "DELETE",
       });
       if (!res.ok) {
@@ -196,7 +193,7 @@ export function DocumentClassification() {
   }
 
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-
+    console.log("지금 파일정보가 어캐돼",selectedFolderFiles)
     const file = e.target.files?.[0]; // 파일이 존재하면 그 파일정보 가져옴
     if (!file) return;
 
@@ -214,7 +211,8 @@ export function DocumentClassification() {
     formData.append("file", file);
 
     try {
-      const res = await fetch("http://localhost:8000/upload", {
+      const res = await fetch("http://localhost:8000/api/upload", {
+        
         method: "POST",
         body: formData,
       });
@@ -664,7 +662,7 @@ export function DocumentClassification() {
                     justifyContent: 'center'
                   }}
                 >
-                  <div onClick={OcrProgresssClick} style={{ color: 'white', fontSize: '12px', fontFamily: 'Roboto', fontWeight: '400', lineHeight: '15px' }}>
+                  <div onClick={OcrProgressClick} style={{ color: 'white', fontSize: '12px', fontFamily: 'Roboto', fontWeight: '400', lineHeight: '15px' }}>
                     OCR 처리 시작
                   </div>
                 </div>
@@ -676,7 +674,8 @@ export function DocumentClassification() {
 
       {step === 'ocr' && (
         <OCRProgress
-          selectedFolderFiles={selectedFolderFiles}
+          
+          selectedFiles={selectedFiles}
           totalFiles={selectedFiles.size}
           onCancel={() => setStep('select')}
           onComplete={() => setStep('complete')}

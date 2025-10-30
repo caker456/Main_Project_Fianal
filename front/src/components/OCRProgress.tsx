@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
 interface OCRProgressProps {
-  selectedFolderFiles: string[];
+  selectedFiles: Set<string>;
   totalFiles: number;
   onCancel?: () => void;
   onComplete?: () => void;
@@ -14,10 +14,11 @@ interface FileOCRStatus {
   pagesProcessed?: number;
   totalPages?: number;
   error?: string;
+  fpath : string;
 }
 
 export function OCRProgress({
-  selectedFolderFiles,
+  selectedFiles,
   totalFiles,
   onCancel,
   onComplete
@@ -28,17 +29,20 @@ export function OCRProgress({
   const [startTime] = useState(new Date());
   const [estimatedEndTime, setEstimatedEndTime] = useState<Date>(new Date(Date.now() + 3 * 60 * 1000));
   
+ 
+
   useEffect(() => {
   let fileIndex = 0;
   let progress = 0;
-
+  
   // 상태 초기화
-  const initialProgress: FileOCRStatus[] = selectedFolderFiles.map((path, i) => ({
+  const initialProgress: FileOCRStatus[] = Array.from(selectedFiles).map((path, i) => ({
     fileName: path.split(/[\\/]/).pop() ?? `문서${i + 1}.pdf`,
     status: 'waiting',
     progress: 0,
     totalPages: Math.floor(Math.random() * 10) + 5,
-    pagesProcessed: 0
+    pagesProcessed: 0,
+    fpath : path
   }));
   setFilesProgress(initialProgress);
 
@@ -64,6 +68,28 @@ export function OCRProgress({
 
       if (newProgress[fileIndex].progress >= 100) {
         newProgress[fileIndex].status = 'completed';
+        console.log("이건뭐냐?",newProgress[fileIndex],"그리고 애도??",newProgress[fileIndex].fpath);
+        const formData = new FormData();
+      const fetchFiles = async () => {
+        formData.append("filepath",newProgress[fileIndex].fpath)
+      try {
+        const res = await fetch("http://localhost:8000/api/ocrcompleted", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+    } catch (err) {
+
+    }
+    };
+
+    fetchFiles();
+    
+          
+
+
+
+
         fileIndex++;
       }
 
@@ -76,7 +102,7 @@ export function OCRProgress({
     clearInterval(interval);
     setFilesProgress([]); // 상태 초기화 (중복 방지)
   };
-}, [selectedFolderFiles, totalFiles]);
+}, [selectedFiles, totalFiles]);
 
 
   const completedCount = filesProgress.filter(f => f.status === 'completed').length;
