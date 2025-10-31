@@ -7,16 +7,15 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import Divider from '@mui/material/Divider';
 import FormLabel from '@mui/material/FormLabel';
 import FormControl from '@mui/material/FormControl';
-import Link from '@mui/material/Link';
-import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import Stack from '@mui/material/Stack';
 import MuiCard from '@mui/material/Card';
+import TextField from '@mui/material/TextField';
 import { styled } from '@mui/material/styles';
 import ForgotPassword from './components/ForgotPassword';
 import AppTheme from './components/AppTheme';
 import ColorModeSelect from './components/ColorModeSelect';
-import { GoogleIcon, FacebookIcon, SitemarkIcon } from './components/CustomIcons';
+import { GoogleIcon, FacebookIcon } from './components/CustomIcons';
 import { login } from './utils/auth';
 
 const Card = styled(MuiCard)(({ theme }) => ({
@@ -61,7 +60,13 @@ const SignInContainer = styled(Stack)(({ theme }) => ({
   },
 }));
 
-export default function SignIn(props: { disableCustomTheme?: boolean; onLoginSuccess?: () => void }) {
+interface SignInProps {
+  disableCustomTheme?: boolean;
+  onLoginSuccess?: () => void;
+  setCurrentPage?: (page: 'home' | 'management' | 'history' | 'documents' | 'statistics' | 'signup') => void;
+}
+
+export default function SignIn(props: SignInProps) {
   const [id, setId] = React.useState('');
   const [idError, setIdError] = React.useState(false);
   const [idErrorMessage, setIdErrorMessage] = React.useState('');
@@ -73,22 +78,37 @@ export default function SignIn(props: { disableCustomTheme?: boolean; onLoginSuc
   const handleClickOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
 
-  // ✅ 로그인 폼 제출 처리
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-  event.preventDefault();
+    event.preventDefault();
+    if (!validateInputs()) return;
 
-  if (!validateInputs()) return;
+    try {
+      const res = await fetch('http://localhost:8000/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, password }),
+        credentials: 'include', // 세션 쿠키 사용 시
+      });
 
-  try {
-    const user = await login(id, password); // state에서 가져온 id와 password
-    console.log('로그인 성공, 사용자 정보:', user);
-    props.onLoginSuccess?.();
-  } catch (error: any) {
-    alert(error.message || '로그인 실패: 서버 오류');
-  }
-};
+      if (!res.ok) {
+        const data = await res.json();
+        if (res.status === 401) {
+          setIdError(true);
+          setPasswordError(true);
+          setPasswordErrorMessage('아이디나 패스워드가 유효하지 않습니다.');
+          return;
+        }
+        throw new Error(data.detail || '로그인 실패: 서버 오류');
+      }
 
-  // 입력 유효성 검사 (기존 코드 그대로)
+      const userData = await res.json();
+      console.log('로그인 성공, 사용자 정보:', userData.user);
+      props.onLoginSuccess?.();
+    } catch (error: any) {
+      alert(error.message || '로그인 실패: 서버 오류');
+    }
+  };
+
   const validateInputs = () => {
     let isValid = true;
 
@@ -101,9 +121,9 @@ export default function SignIn(props: { disableCustomTheme?: boolean; onLoginSuc
       setIdErrorMessage('');
     }
 
-    if (!password || password.length < 3) {
+    if (!password || password.length < 3) { // 비밀번호 최소 3자리
       setPasswordError(true);
-      setPasswordErrorMessage('Password must be at least 6 characters long.');
+      setPasswordErrorMessage('Password must be at least 3 characters long.');
       isValid = false;
     } else {
       setPasswordError(false);
@@ -113,14 +133,12 @@ export default function SignIn(props: { disableCustomTheme?: boolean; onLoginSuc
     return isValid;
   };
 
-
   return (
     <AppTheme {...props}>
       <CssBaseline enableColorScheme />
       <SignInContainer direction="column" justifyContent="space-between">
         <ColorModeSelect sx={{ position: 'fixed', top: '1rem', right: '1rem' }} />
         <Card variant="outlined">
-          <SitemarkIcon />
           <Typography
             component="h1"
             variant="h4"
@@ -132,22 +150,17 @@ export default function SignIn(props: { disableCustomTheme?: boolean; onLoginSuc
             component="form"
             onSubmit={handleSubmit}
             noValidate
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              width: '100%',
-              gap: 2,
-            }}
+            sx={{ display: 'flex', flexDirection: 'column', width: '100%', gap: 2 }}
           >
             <FormControl>
-              <FormLabel htmlFor="email">Id</FormLabel>
+              <FormLabel htmlFor="email">ID</FormLabel>
               <TextField
                 error={idError}
                 helperText={idErrorMessage}
                 id="id"
                 type="text"
                 name="id"
-                placeholder="Id"
+                placeholder="ID"
                 autoComplete="current-id"
                 autoFocus
                 required
@@ -181,23 +194,12 @@ export default function SignIn(props: { disableCustomTheme?: boolean; onLoginSuc
               label="Remember me"
             />
             <ForgotPassword open={open} handleClose={handleClose} />
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              onClick={validateInputs}
-            >
+            <Button type="submit" fullWidth variant="contained" onClick={validateInputs}>
               Sign in
             </Button>
-            <Link
-              component="button"
-              type="button"
-              onClick={handleClickOpen}
-              variant="body2"
-              sx={{ alignSelf: 'center' }}
-            >
+            <Button variant="text" onClick={handleClickOpen} sx={{ alignSelf: 'center' }}>
               Forgot your password?
-            </Link>
+            </Button>
           </Box>
           <Divider>or</Divider>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -219,13 +221,13 @@ export default function SignIn(props: { disableCustomTheme?: boolean; onLoginSuc
             </Button>
             <Typography sx={{ textAlign: 'center' }}>
               Don&apos;t have an account?{' '}
-              <Link
-                href="/material-ui/getting-started/templates/sign-in/"
-                variant="body2"
+              <Button
+                variant="text"
+                onClick={() => props.setCurrentPage?.('signup')}
                 sx={{ alignSelf: 'center' }}
               >
                 Sign up
-              </Link>
+              </Button>
             </Typography>
           </Box>
         </Card>

@@ -3,12 +3,11 @@
       "version": "0.1.0",
       "private": true,
       "dependencies": {
-
             "@emotion/react": "^11.14.0",
             "@emotion/styled": "^11.14.1",
             "@mui/icons-material": "^7.3.4",
             "@mui/material": "^7.3.4",
-
+            "@phosphor-icons/react": "^2.1.10",
             "@radix-ui/react-accordion": "^1.2.3",
             "@radix-ui/react-alert-dialog": "^1.1.6",
             "@radix-ui/react-aspect-ratio": "^1.1.2",
@@ -59,7 +58,6 @@
             "@vitejs/plugin-react-swc": "^3.10.2",
             "typescript": "^5.2.2",
             "vite": "6.3.5"
-
       },
       "scripts": {
             "dev": "vite",
