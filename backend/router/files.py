@@ -42,14 +42,38 @@ async def get_files():
     cur = conn.cursor()
     try:
         cur.execute("""
-            SELECT filename
-            FROM pdf_documents
-            ORDER BY created_at DESC
+            SELECT 
+                p.doc_id,
+                p.filename,
+                p.upload_date,
+                p.file_size,
+                p.page_count,
+                p.status,
+                p.created_at,
+                p.updated_at,
+                p.member_id,
+                m.username,
+                m.email
+            FROM pdf_documents p
+            LEFT JOIN member_info m ON p.member_id = m.member_id
+            ORDER BY p.created_at DESC
         """)
         rows = cur.fetchall()
 
         # 프론트는 file.filepath를 참조하므로 key 이름을 맞춰줍니다.
-        return [{"filepath": row[0]} for row in rows]
+        return [{
+            "doc_id": row[0],
+            "filename": row[1],
+            "upload_date": row[2],
+            "file_size": row[3],
+            "page_count": row[4],
+            "status": row[5],
+            "created_at": row[6],
+            "updated_at": row[7],
+            "member_id": row[8],
+            "member_name": row[9],
+            "member_email": row[10]
+                 } for row in rows]
     except Exception as e:
         return {"error": str(e)}
     finally:
@@ -86,15 +110,14 @@ async def ocrcomplet(filepath: str = Form(...)):
         db_pool.release_conn(conn)
 
 
-    return 0
-
 
         
 @router.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
-    os.makedirs("uploads", exist_ok=True)
+    os.makedirs(f"{file.id}", exist_ok=True)
     save_path = f"uploads/{file.filename}"
     save_size = os.path.getsize(file.filename)
+    print("너는 경로가??????",save_path)
     with open(save_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
