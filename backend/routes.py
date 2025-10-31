@@ -1,5 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, Query,Form
-from router.zip_utiles import extract_zip
+from zip_utiles import extract_zip
 from db_conn import db_pool
 import shutil, os
 from datetime import datetime
