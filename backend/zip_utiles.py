@@ -16,7 +16,7 @@ def fix_zip_filename(name: str) -> str:
         return name
 
 
-def extract_zip(zip_path: str, zip_filename: str) -> int:
+def extract_zip(zip_path: str, zip_filename: str,member_id) -> int:
     added = 0
     zip_root = os.path.splitext(zip_filename)[0]
     extract_dir = os.path.join("uploads", zip_root)  # ZIP 해제 폴더
@@ -45,7 +45,6 @@ def extract_zip(zip_path: str, zip_filename: str) -> int:
                 reader = PdfReader(new_path)
                 
                 
-                
 
 
                 # 중복 확인
@@ -55,10 +54,9 @@ def extract_zip(zip_path: str, zip_filename: str) -> int:
       
                 # DB 삽입
                 cursor.execute("""
-                    INSERT INTO pdf_documents (page_count,filename, status, file_size, created_at, updated_at)
+                    INSERT INTO pdf_documents (filename,file_size , status, updated_at,page_count,member_id)
                     VALUES (%s,%s, %s, %s, %s, %s)
-                """, (len(reader.pages),zip_path_any, 'uploaded', size, datetime.now(), datetime.now()))
-
+                """, (zip_path_any,size, "uploaded", datetime.now(),len(reader.pages), member_id))
                 added += 1
                 
         conn.commit()
