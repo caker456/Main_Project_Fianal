@@ -1,5 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, Query,Form,HTTPException, Request
-from router.zip_utiles import extract_zip
+from zip_utiles import extract_zip
 from db_conn import db_pool
 import shutil, os
 from datetime import datetime
@@ -7,12 +7,12 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from login import login_member, get_current_user, logout_member
 from member import add_member, update_member, delete_member
-
+from upload import list_user_files
 
 router = APIRouter()
 
 
-@router.delete("/remove")
+@router.delete("uploads/files/remove")
 def remove_file(path: str = Query(..., description="삭제할 파일 경로")):
     conn = db_pool.get_conn()
     cur = None
@@ -43,9 +43,28 @@ def remove_file(path: str = Query(..., description="삭제할 파일 경로")):
 
 
 
+@router.post("/uploads")
+async def upload_file(request: Request, file: UploadFile = File(...)):
+    # ✅ 1. 세션에서 유저 정보 확인
+    user = request.session.get("user")
+    if not user:
+        return JSONResponse(status_code=401, content={"error": "Not logged in"})
+
+    user_id = user["id"]
 
 
-@router.get("/files")
+    # ✅ 2. 사용자별 폴더 생성 (ex: uploads/3/)
+    list_user_files(user_id,file)
+    
+    return {"message": "File uploaded successfully"}
+
+
+
+
+
+    
+
+@router.get("uploads/files")
 async def get_files():
     conn = db_pool.get_conn()
     cur = conn.cursor()
@@ -125,9 +144,9 @@ async def ocrcomplet(filepath: str = Form(...)):
 
 
         
-@router.post("/upload")
+@router.post("/uploads")
 async def upload_file(file: UploadFile = File(...)):
-    os.makedirs(f"{file.id}", exist_ok=True)
+    os.makedirs(f"{file.filename}", exist_ok=True)
     save_path = f"uploads/{file.filename}"
     save_size = os.path.getsize(file.filename)
     print("너는 경로가??????",save_path)

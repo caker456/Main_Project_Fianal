@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routes import router
-from db import init_db
+from db_conn import PostgresDB
 from starlette.middleware.sessions import SessionMiddleware
 app = FastAPI(title="File Upload API")
 
@@ -17,7 +17,7 @@ app.add_middleware(
 )
 
 # ✅ DB 초기화
-init_db()
+PostgresDB()
 
 # ✅ 라우터 등록
 app.include_router(router)
