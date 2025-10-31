@@ -159,7 +159,7 @@ export function DocumentClassification() {
   // 여러 파일을 순차적으로 삭제하는 함수
   const deleteMultipleFiles = async (paths: string[]) => {
     for (const path of paths) {
-      const res = await fetch(`http://127.0.0.1:8000/uploads/remove?path=${encodeURIComponent(path)}`, {
+      const res = await fetch(`http://127.0.0.1:8000/api/remove?path=${encodeURIComponent(path)}`, {
         method: "DELETE",
       });
       if (!res.ok) {
@@ -175,7 +175,7 @@ export function DocumentClassification() {
     alert("선택한 폴더의 모든 파일 삭제 완료 ✅");
 
     // 🔄 삭제 후 폴더 트리 새로고침
-    const refreshRes = await fetch("http://localhost:8000/uploads/files");
+    const refreshRes = await fetch("http://localhost:8000/api/files");
     const newData = await refreshRes.json();
     const filePaths = newData.map((f: any) => f.filepath);
     const tree = buildFolderTree(filePaths);
@@ -194,79 +194,59 @@ export function DocumentClassification() {
   }
 
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const data = new FormData();
-    const member = await fetch("http://localhost:8000/me",{
-      method: "GET",
-      credentials: "include",  // ✅ 쿠키 포함
-    });
-    const member_info = await member.json();
-    console.log("지금 파일정보가 어캐돼",member_info);
-      
-      
-      const file = e.target.files?.[0]; 
-      if (!file) return;
-      setSelectedFile(file);
-      const formData = new FormData();
-      formData.append("file",file);
-      const res = await fetch("http://localhost:8000/uploads",{
+    console.log("지금 파일정보가 어캐돼",selectedFolderFiles)
+    const file = e.target.files?.[0]; // 파일이 존재하면 그 파일정보 가져옴
+    if (!file) return;
+
+    setSelectedFile(file);
+    //확장자만 가져오기
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    // zip 파일만 허용
+    if (ext !== "zip" && ext !== "pdf") {
+      alert("zip,pdf 파일을 선택해주세요.");
+      return;
+    }
+
+
+    const formData = new FormData();
+    formData.append("file", file);
+    console.log("서버 응답????????", file);
+
+    try {
+      const res = await fetch("http://localhost:8000/api/upload", {
+        
         method: "POST",
-        credentials: "include",
         body: formData,
       });
-
-
-    // const file = e.target.files?.[0]; // 파일이 존재하면 그 파일정보 가져옴
-    // if (!file) return;
-
-    // setSelectedFile(file);
-    // //확장자만 가져오기
-    // const ext = file.name.split('.').pop()?.toLowerCase();
-    // // zip 파일만 허용
-    // if (ext !== "zip" && ext !== "pdf") {
-    //   alert("zip,pdf 파일을 선택해주세요.");
-    //   return;
-    // }
-
-
-    // const formData = new FormData();
-    // formData.append("file", file);
-    // console.log("서버 응답????????", file);
-
-    // try {
-    //   const res = await fetch("http://localhost:8000/api/upload", {
-        
-    //     method: "POST",
-    //     body: formData,
-    //   });
           
-    //   // FastAPI 응답 JSON 파싱
-    //   const data = await res.json();
-    //   console.log("서버 응답:", data);
+      // FastAPI 응답 JSON 파싱
+      const data = await res.json();
+      console.log("서버 응답:", data);
 
-    //   if (!res.ok) {
-    //     alert("업로드 실패: " + (data.detail || "서버 오류"));
-    //     return;
-    //   }
+      if (!res.ok) {
+        alert("업로드 실패: " + (data.detail || "서버 오류"));
+        return;
+      }
 
-    //   alert("✅ 업로드 완료: " + (data.filename || "서버 저장 완료"));
-    //   const refreshRes = await fetch("http://localhost:8000/api/files");
-    //   if (!refreshRes.ok) throw new Error("DB 파일 목록 불러오기 실패");
-    //   const newData = await refreshRes.json();
-    //   const filePaths = newData.map((f: any) => f.filepath);
-    //   const tree = buildFolderTree(filePaths);
+      alert("✅ 업로드 완료: " + (data.filename || "서버 저장 완료"));
+      const refreshRes = await fetch("http://localhost:8000/api/files");
+      if (!refreshRes.ok) throw new Error("DB 파일 목록 불러오기 실패");
+      const newData = await refreshRes.json();
+      const filePaths = newData.map((f: any) => f.filepath);
+      const tree = buildFolderTree(filePaths);
 
-    //   setFolderStructure(tree);
-    //   setTreeData(tree); // ← 검색창용 트리도 갱신
-    //   if (data.file_list) {
-    //     const tree = buildFolderTree(data.file_list);
-    //     setFolderStructure(tree);
-    //     console.log("📂 변환된 폴더 구조:", tree);
-    //   }
-    //   // 업로드 후, DB에 저장된 폴더 구조 다시 불러오기
-    // } catch (err) {
-    //   console.error("❌ 업로드 오류:", err);
-    //   alert("업로드 중 오류가 발생했습니다.");
-    // }
+      setFolderStructure(tree);
+      setTreeData(tree); // ← 검색창용 트리도 갱신
+      if (data.file_list) {
+        const tree = buildFolderTree(data.file_list);
+        setFolderStructure(tree);
+        console.log("📂 변환된 폴더 구조:", tree);
+      }
+      // 업로드 후, DB에 저장된 폴더 구조 다시 불러오기
+    } catch (err) {
+      console.error("❌ 업로드 오류:", err);
+      alert("업로드 중 오류가 발생했습니다.");
+    }
   };
 
 
