@@ -145,7 +145,7 @@ def get_member_by_id(member_id: str):
     query = """
         SELECT id, name, phone, email
         FROM member_info
-        WHERE id = %s
+        WHERE member_id = %s
     """
     conn = db.get_conn()
     try:
@@ -154,3 +154,20 @@ def get_member_by_id(member_id: str):
             return cur.fetchone()
     finally:
         db.release_conn(conn)
+
+
+# 5️⃣ USER 회원 수 조회
+def get_total_member_count() -> int:
+    """
+    member_role이 'R2'인 회원 수를 반환
+    """
+    query = "SELECT COUNT(*) AS total FROM member_info WHERE member_role = 'R2'"
+    conn = db.get_conn()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(query)
+            result = cur.fetchone()
+            return result['total'] if result else 0
+    finally:
+        db.release_conn(conn)
+
