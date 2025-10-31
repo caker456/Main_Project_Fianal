@@ -36,7 +36,10 @@ def login_member(user_id: str, password: str, session: dict):
         # 세션 저장
         session["user"] = {
             "member_id": int(row["member_id"]),
+            "id": row["id"],
+            "name": row["name"],
             "member_role": row["member_role"],
+            "member_grade": row["member_grade"],
         }
 
         # member_log 업데이트
@@ -69,12 +72,12 @@ def logout_member(session: dict):
     return {"message": "Logged out successfully"}
 
 
-# 세션에 로그인 정보가 있는지 확인
 def get_current_user(session: dict):
-    """
-    현재 로그인한 사용자 조회
-    """
     user = session.get("user")
     if not user:
         return {"error": "Not logged in"}
-    return user
+    # DB에서 실제 회원 정보 조회
+    member = get_member_by_id(user["id"])
+    if not member:
+        return {"error": "Member not found"}
+    return member

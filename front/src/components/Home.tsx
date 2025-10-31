@@ -1,5 +1,4 @@
 import { Users, HardDrive } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
 import {
   BarChart as RechartsBarChart,
   Bar,
@@ -15,13 +14,6 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
-
-interface Member {
-  id: string;
-  name: string;
-  phone?: string;
-  email?: string;
-}
 
 export function Home() {
   // 샘플 데이터
@@ -55,38 +47,6 @@ export function Home() {
     { name: '추천', value: 0, color: '#10B981' }
   ];
 
-  const [currentUser, setCurrentUser] = useState<Member | null>(null);
-
-  useEffect(() => {
-    fetch('http://localhost:8000/member/me', { credentials: 'include' })
-      .then(res => {
-        if (!res.ok) throw new Error("Failed to fetch member info");
-        return res.json();
-      })
-      .then(data => setCurrentUser(data))
-      .catch(err => console.error(err));
-  }, []);
-
-  const [totalMembers, setTotalMembers] = useState<number>(0);
-
-  useEffect(() => {
-    // 백엔드 API 호출
-    fetch("http://localhost:8000/member/count", { credentials: "include" })
-      .then(res => {
-        if (!res.ok) throw new Error("Failed to fetch total members");
-        return res.json();
-      })
-      .then(data => {
-        if (data && typeof data.total_members === "number") {
-          setTotalMembers(data.total_members);
-        }
-      })
-      .catch(err => {
-        console.error("Error fetching total members:", err);
-        setTotalMembers(0); // 기본값
-      });
-      }, []);
-
   return (
     <div style={{width: 1440, height: 852, position: 'relative', background: 'white'}}>
 
@@ -96,8 +56,8 @@ export function Home() {
         <div style={{width: 750, height: 180, left: 0, top: 0, position: 'absolute', background: 'white', boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08)', borderRadius: 6}}>
           <div style={{width: 120, height: 140, left: 20, top: 20, position: 'absolute'}}>
             <div style={{width: 120, height: 40, left: 0, top: 25, position: 'absolute'}}>
-              <div style={{left: 0, top: 0, position: 'absolute', color: '#666666', fontSize: 14, fontFamily: 'Roboto', fontWeight: '700', lineHeight: '20px', wordWrap: 'break-word'}}>사용자명</div>
-              <div style={{left: 0, top: 20, position: 'absolute', color: '#333333', fontSize: 14, fontFamily: 'Roboto', fontWeight: '800', lineHeight: '20px', wordWrap: 'break-word'}}>{currentUser?.name || "USER"} {/* 여기서 사용자명 표시 */}</div>
+              <div style={{left: 0, top: 0, position: 'absolute', color: '#666666', fontSize: 14, fontFamily: 'Roboto', fontWeight: '700', lineHeight: '20px', wordWrap: 'break-word'}}>기관명</div>
+              <div style={{left: 0, top: 20, position: 'absolute', color: '#333333', fontSize: 14, fontFamily: 'Roboto', fontWeight: '800', lineHeight: '20px', wordWrap: 'break-word'}}>NETID</div>
             </div>
             <div style={{width: 120, height: 40, left: 0, top: 75, position: 'absolute'}}>
               <div style={{left: 0, top: 0, position: 'absolute', color: '#666666', fontSize: 14, fontFamily: 'Roboto', fontWeight: '700', lineHeight: '20px', wordWrap: 'break-word'}}>중앙문서함</div>
@@ -114,7 +74,7 @@ export function Home() {
               </div>
               <div style={{width: 180, height: 65, left: 90, top: 37, position: 'absolute'}}>
                 <div style={{left: 0, top: 0, position: 'absolute', color: 'white', fontSize: 14, fontFamily: 'Roboto', fontWeight: '600', lineHeight: '20px', wordWrap: 'break-word'}}>총 사용자 수</div>
-                <div style={{left: 0, top: 25, position: 'absolute', color: 'white', fontSize: 28, fontFamily: 'Roboto', fontWeight: '800', lineHeight: '40px', wordWrap: 'break-word'}}>{totalMembers}명</div>
+                <div style={{left: 0, top: 25, position: 'absolute', color: 'white', fontSize: 28, fontFamily: 'Roboto', fontWeight: '800', lineHeight: '40px', wordWrap: 'break-word'}}>106명</div>
               </div>
             </div>
 
