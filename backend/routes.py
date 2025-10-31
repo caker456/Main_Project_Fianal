@@ -1,17 +1,18 @@
-import shutil, os
-from fastapi import APIRouter, UploadFile, File, Query,Form,HTTPException, Request, Response
-from fastapi.responses import JSONResponse
-from router.zip_utiles import extract_zip
-from pydantic import BaseModel
-from datetime import datetime
-from login import login_member, get_current_user, logout_member
-from member import add_member, update_member, delete_member, get_member_by_id, get_total_member_count
+from fastapi import APIRouter, UploadFile, File, Query,Form,HTTPException, Request
+from zip_utiles import extract_zip
 from db_conn import db_pool
+import shutil, os
+from datetime import datetime
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+from login import login_member, get_current_user, logout_member
+from member import add_member, update_member, delete_member
+from upload import list_user_files
 
 router = APIRouter()
 
 
-@router.delete("/remove")
+@router.delete("uploads/files/remove")
 def remove_file(path: str = Query(..., description="삭제할 파일 경로")):
     conn = db_pool.get_conn()
     cur = None
@@ -41,7 +42,29 @@ def remove_file(path: str = Query(..., description="삭제할 파일 경로")):
         db_pool.release_conn(conn)
 
 
-@router.get("/files")
+
+@router.post("/uploads")
+async def upload_file(request: Request, file: UploadFile = File(...)):
+    # ✅ 1. 세션에서 유저 정보 확인
+    user = request.session.get("user")
+    if not user:
+        return JSONResponse(status_code=401, content={"error": "Not logged in"})
+
+    user_id = user["id"]
+
+
+    # ✅ 2. 사용자별 폴더 생성 (ex: uploads/3/)
+    list_user_files(user_id,file)
+    
+    return {"message": "File uploaded successfully"}
+
+
+
+
+
+    
+
+@router.get("uploads/files")
 async def get_files():
     conn = db_pool.get_conn()
     cur = conn.cursor()
@@ -86,6 +109,8 @@ async def get_files():
         db_pool.release_conn(conn)
 
 
+
+
 @router.post("/ocrcompleted")
 async def ocrcomplet(filepath: str = Form(...)):
     print(f"📄 OCR 완료된 파일 경로: {filepath}")
@@ -116,10 +141,12 @@ async def ocrcomplet(filepath: str = Form(...)):
         cur.close()
         db_pool.release_conn(conn)
 
+
+
         
-@router.post("/upload")
+@router.post("/uploads")
 async def upload_file(file: UploadFile = File(...)):
-    os.makedirs(f"{file.id}", exist_ok=True)
+    os.makedirs(f"{file.filename}", exist_ok=True)
     save_path = f"uploads/{file.filename}"
     save_size = os.path.getsize(file.filename)
     print("너는 경로가??????",save_path)
@@ -157,6 +184,9 @@ async def upload_file(file: UploadFile = File(...)):
         db_pool.release_conn(conn)
 
 
+
+
+
 # ===== 로그인 모델 =====
 class LoginRequest(BaseModel):
     id: str
@@ -175,14 +205,13 @@ def login_endpoint(data: LoginRequest, request: Request):
 def logout_endpoint(request: Request):
     return logout_member(request.session)
 
-# 회원 정보확인(세션확인용)
+# 회원 정보확인
 @router.get("/me")
 def get_current_user_endpoint(request: Request):
     result = get_current_user(request.session)
     if "error" in result:
         raise HTTPException(status_code=401, detail=result["error"])
     return result
-
 
 # ===== 회원 모델 =====
 # 회원가입 모델
@@ -222,20 +251,6 @@ def add_member_endpoint(data: AddMemberRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# 회원 정보 조회용
-@router.get("/member/me")
-def get_my_member_info(request: Request):
-    session_user = get_current_user(request.session)
-    if "error" in session_user:
-        raise HTTPException(status_code=401, detail=session_user["error"])
-    
-    member_id = session_user["member_id"]
-    member = get_member_by_id(member_id)  # member.py 함수 사용
-    if not member:
-        raise HTTPException(status_code=404, detail="Member not found")
-    
-    return member  # 실제 회원 정보 반환
-
 # 회원정보수정
 @router.put("/member/update")
 def update_member_endpoint(data: UpdateMemberRequest):
@@ -254,32 +269,16 @@ def update_member_endpoint(data: UpdateMemberRequest):
 
 # 회원삭제
 @router.delete("/member/delete/{member_id}")
-def delete_member_endpoint(member_id: str, response: Response):
+def delete_member_endpoint(member_id: str):
     success = delete_member(member_id)
     if not success:
         raise HTTPException(status_code=404, detail="Member not found")
-
-    # 세션 쿠키 삭제 → 브라우저에서 로그아웃 처리
-    response.delete_cookie(key="session")
-
     return {"message": "Member deleted successfully"}
 
-# 회원 정보 조회 - 관리자용
-@router.get("/member/admin/{member_id}")
+# 회원 정보 조회
+@router.get("/member/{member_id}")
 def get_member_endpoint(member_id: str):
-    member = get_member_by_id(member_id)
+    member = get_member(member_id)
     if not member:
         raise HTTPException(status_code=404, detail="Member not found")
     return member
-
-# 전체 회원수 조회 하는 코드 
-@router.get("/member/count")
-def get_member_count():
-    """
-    전체 회원 수 조회 API (member_role='R2'만)
-    """
-    try:
-        total = get_total_member_count()
-        return {"total_members": total}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
