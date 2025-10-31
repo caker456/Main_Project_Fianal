@@ -21,13 +21,21 @@ export function UserPopover({ anchorEl, onClose, open, onPageChange }: UserPopov
   const [name, setName] = useState<string>("User");
 
   useEffect(() => {
-    fetch("http://localhost:8000/me", { credentials: "include" })
-      .then(res => res.json())
-      .then(data => {
-        if (data.name) setName(data.name);
+    if (!open) return; // 팝오버가 열릴 때만 실행
+
+    fetch("http://localhost:8000/member/me", { credentials: "include" })
+      .then(res => {
+        if (!res.ok) throw new Error("Failed to fetch user info");
+        return res.json();
       })
-      .catch(err => console.error(err));
-  }, []);
+      .then(member => {
+        if (member && member.name) setName(member.name); // 최신 DB 이름 반영
+      })
+      .catch(err => {
+        console.error("Error fetching user info:", err);
+        setName("User"); // 기본값
+      });
+  }, [open]);
 
   const handleLogout = async () => {
     try {
@@ -63,13 +71,6 @@ export function UserPopover({ anchorEl, onClose, open, onPageChange }: UserPopov
       <Divider />
 
       <MenuList disablePadding sx={{ p: "8px", "& .MuiMenuItem-root": { borderRadius: 1, fontSize: "0.85rem" } }}>
-        {/* - 관리자 역할을 할거면 이거 사용하는게 좋을듯
-        <MenuItem component={RouterLink} href={paths.dashboard.settings} onClick={onClose}>
-          <ListItemIcon>
-            <GearSixIcon fontSize="var(--icon-fontSize-md)" />
-          </ListItemIcon>
-          Settings
-        </MenuItem> */}
         <MenuItem onClick={goToProfile}>
           <ListItemIcon>
             <UserIcon fontSize="var(--icon-fontSize-md)" />
@@ -87,4 +88,3 @@ export function UserPopover({ anchorEl, onClose, open, onPageChange }: UserPopov
     </Popover>
   );
 }
-

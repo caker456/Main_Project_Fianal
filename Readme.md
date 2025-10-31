@@ -9,18 +9,15 @@ dbname="postgres",user="postgres",password="1234",host="localhost",port="5432"
 pip install psycopg2-binary
 pip install fastapi uvicorn sqlalchemy
 pip install PyPDF2
-
-
-frontend
-
 pip install passlib[bcrypt]==1.7.4
 pip install bcrypt==4.0.1
-pip install pdf2image
+pip install python-mutipart
+pip install itsdangerous
 
-=======
+frontend
 npm install vite --save-dev
-
-
+npm install @phosphor-icons/react
+npm install @mui/material @emotion/react @emotion/styled @muiicons-material
 
 npm run dev
 

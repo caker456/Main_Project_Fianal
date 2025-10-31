@@ -114,7 +114,7 @@ async def ocrcomplet(filepath: str = Form(...)):
         
 @router.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
-    os.makedirs(f"{file.id}", exist_ok=True)
+    os.makedirs(f"uploads/{file.filename}", exist_ok=True)
     save_path = f"uploads/{file.filename}"
     save_size = os.path.getsize(file.filename)
     print("너는 경로가??????",save_path)
