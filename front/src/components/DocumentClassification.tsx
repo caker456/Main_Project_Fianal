@@ -194,11 +194,12 @@ export function DocumentClassification() {
   }
 
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log("지금 파일정보가 어캐돼",selectedFolderFiles)
     const file = e.target.files?.[0]; // 파일이 존재하면 그 파일정보 가져옴
     if (!file) return;
-
     setSelectedFile(file);
+    const formData = new FormData();
+    formData.append("file", file);
+    
     //확장자만 가져오기
     const ext = file.name.split('.').pop()?.toLowerCase();
     // zip 파일만 허용
@@ -207,18 +208,17 @@ export function DocumentClassification() {
       return;
     }
 
-
-    const formData = new FormData();
-    formData.append("file", file);
-    console.log("서버 응답????????", file);
-
+    //뭘post로 보냄?formdata를
+    
+    console.log("ㅡㅡㅡㅡㅡㅡㅡ")
     try {
-      const res = await fetch("http://localhost:8000/api/upload", {
+      const res = await fetch("http://localhost:8000/upload", {
         
         method: "POST",
+        credentials: 'include',
         body: formData,
       });
-          
+        console.log("ㅡㅡㅡㅡㅡㅡㅡ")  
       // FastAPI 응답 JSON 파싱
       const data = await res.json();
       console.log("서버 응답:", data);

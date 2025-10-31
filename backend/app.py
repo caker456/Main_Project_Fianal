@@ -17,7 +17,7 @@ app.add_middleware(
 # ✅ CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],  # Vite 기본 포트
+    allow_origins=["http://localhost:3000"],  # Vite 기본 포트
     allow_credentials=True,  # 자격 증명 허용
     allow_methods=["*"],
     allow_headers=["*"],

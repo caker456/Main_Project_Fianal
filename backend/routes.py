@@ -8,11 +8,36 @@ from datetime import datetime
 from login import login_member, get_current_user, logout_member
 from member import add_member, update_member, delete_member, get_member_by_id, get_total_member_count
 from db_conn import db_pool
+from uploads import upload_files
+        # router.py
 
 
 
 
 router = APIRouter()
+
+
+
+
+@router.post("/upload")
+async def upload_res(request: Request,file: UploadFile = File(...)):
+    try:
+        return  await upload_files(request, file)
+        
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 @router.delete("/remove")
@@ -121,52 +146,47 @@ async def ocrcomplet(filepath: str = Form(...)):
 
 
         
-@router.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
-    os.makedirs(f"{file.id}", exist_ok=True)
-    save_path = f"uploads/{file.filename}"
-    save_size = os.path.getsize(file.filename)
-    print("너는 경로가??????",save_path)
-    with open(save_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+# @router.post("/upload")
+# async def upload_file(file: UploadFile = File(...)):
+#     os.makedirs(f"{file.id}", exist_ok=True)
+#     save_path = f"uploads/{file.filename}"
+#     save_size = os.path.getsize(file.filename)
+#     print("너는 경로가??????",save_path)
+#     with open(save_path, "wb") as buffer:
+#         shutil.copyfileobj(file.file, buffer)
 
-    ext = file.filename.split(".")[-1].lower()
-    conn = db_pool.get_conn()
-    cursor = conn.cursor()
+#     ext = file.filename.split(".")[-1].lower()
+#     conn = db_pool.get_conn()
+#     cursor = conn.cursor()
 
-    try:
-        if ext == "zip":
-            added = extract_zip(save_path, file.filename)
-            return {"message": f"ZIP 업로드 완료 ({added}개 추가됨)", "file_count": added}
-        elif ext == "pdf":
-            cursor.execute(
-                "SELECT 1 FROM pdf_documents WHERE filename = %s", (file.filename,)
-            )
-            if cursor.fetchone():
-                return {"message": "이미 업로드된 파일입니다.", "file_count": 0}
+#     try:
+#         if ext == "zip":
+#             added = extract_zip(save_path, file.filename)
+#             return {"message": f"ZIP 업로드 완료 ({added}개 추가됨)", "file_count": added}
+#         elif ext == "pdf":
+#             cursor.execute(
+#                 "SELECT 1 FROM pdf_documents WHERE filename = %s", (file.filename,)
+#             )
+#             if cursor.fetchone():
+#                 return {"message": "이미 업로드된 파일입니다.", "file_count": 0}
 
-            cursor.execute("""
-                INSERT INTO pdf_documents (file_size ,filename, status, created_at, updated_at)
-                VALUES (%s,%s, %s, %s, %s)
-            """, (save_size,save_path, "uploaded", datetime.now(), datetime.now()))
-            conn.commit()
-            return {"message": "PDF 업로드 완료", "file_count": 1}
-        else:
-            return {"error": "zip 또는 pdf만 업로드 가능"}
-    except Exception as e:
-        conn.rollback()
-        return {"error": str(e)}
-    finally:    
-        cursor.close()
-        db_pool.release_conn(conn)
+#             cursor.execute("""
+#                 INSERT INTO pdf_documents (file_size ,filename, status, created_at, updated_at)
+#                 VALUES (%s,%s, %s, %s, %s)
+#             """, (save_size,save_path, "uploaded", datetime.now(), datetime.now()))
+#             conn.commit()
+#             return {"message": "PDF 업로드 완료", "file_count": 1}
+#         else:
+#             return {"error": "zip 또는 pdf만 업로드 가능"}
+#     except Exception as e:
+#         conn.rollback()
+#         return {"error": str(e)}
+#     finally:    
+#         cursor.close()
+#         db_pool.release_conn(conn)
 
 
 
-        # router.py
-from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel
-from login import login_member, get_current_user, logout_member
-from member import add_member, update_member, delete_member
 
 # ===== 로그인 모델 =====
 class LoginRequest(BaseModel):
