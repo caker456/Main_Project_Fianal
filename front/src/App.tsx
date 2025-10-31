@@ -13,7 +13,12 @@ import { AccountDetailsForm } from './components/AccountDetails';
 
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
-  const [currentPage, setCurrentPage] = useState< 'home' | 'management' | 'history' | 'documents' | 'statistics' | 'signup' | 'profile' >('home');
+  const [currentPage, setCurrentPage] = useState<
+    'home' | 'management' | 'history' | 'documents' | 'statistics' | 'signup' | 'profile'
+  >('home');
+
+  // ✅ 세션 유지 시간 (예: 1시간 = 3600초)
+  const SESSION_DURATION = 3600;
 
   useEffect(() => {
     const checkLogin = async () => {
@@ -23,55 +28,59 @@ export default function App() {
     checkLogin();
   }, []);
 
+  // ✅ 로그아웃 처리
   const handleLogout = async () => {
     await logout();
     setLoggedIn(false);
+    setCurrentPage('home'); // 로그아웃 시 홈으로 이동
   };
 
-  // 회원가입 페이지는 로그인 여부와 상관없이 접근 가능
+  // ✅ 회원가입 페이지 (로그인 여부 무관)
   if (currentPage === 'signup') {
-    return <SignUp onSignupSuccess={() => setCurrentPage('home')} onGoToSignIn={() => setCurrentPage('home')} />;
-  }
-
-
-
-
-
-  // 로그인 필요 페이지
-  if (!loggedIn) {
-    return <SignIn onLoginSuccess={() => setLoggedIn(true)} setCurrentPage={setCurrentPage} />;
-  }
     return (
+      <SignUp
+        onSignupSuccess={() => setCurrentPage('home')}
+        onGoToSignIn={() => setCurrentPage('home')}
+      />
+    );
+  }
+
+  // ✅ 로그인 필요 페이지
+  if (!loggedIn) {
+    return (
+      <SignIn
+        onLoginSuccess={() => setLoggedIn(true)}
+        setCurrentPage={setCurrentPage}
+      />
+    );
+  }
+
+  // ✅ 메인 화면
+  return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar currentPage={currentPage} onPageChange={setCurrentPage} />
+
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header onLogout={handleLogout} onPageChange={setCurrentPage} />
+        {/* ✅ 세션 만료 타이머와 자동 로그아웃 기능 포함 */}
+        <Header
+          onLogout={handleLogout}
+          onPageChange={setCurrentPage}
+          sessionDuration={SESSION_DURATION}
+        />
+
         <main className="flex-1 overflow-y-auto">
           {currentPage === 'home' && <Home />}
           {currentPage === 'management' && <CategoryManagement />}
           {currentPage === 'documents' && <DocumentClassification />}
           {currentPage === 'history' && <ChangeHistory />}
           {currentPage === 'statistics' && <Statistics />}
-          {currentPage === 'profile' && <AccountDetailsForm />}
+
+          {/* ✅ 프로필 수정 후 홈으로 이동 */}
+          {currentPage === 'profile' && (
+            <AccountDetailsForm goHome={() => setCurrentPage('home')} />
+          )}
         </main>
       </div>
     </div>
   );
 }
-
-  // return (
-  //   <div className="flex h-screen bg-gray-50">
-  //     <Sidebar currentPage={currentPage} onPageChange={setCurrentPage} />
-  //     <div className="flex-1 flex flex-col overflow-hidden">
-
-  //       <main className="flex-1 overflow-y-auto">
-  //         {currentPage === 'home' && <Home />}
-  //         {currentPage === 'management' && <CategoryManagement />}
-  //         {currentPage === 'documents' && <DocumentClassification />}
-  //         {currentPage === 'history' && <ChangeHistory />}
-  //         {currentPage === 'statistics' && <Statistics />}
-  //       </main>
-  //     </div>
-  //   </div>
-  // );
-
