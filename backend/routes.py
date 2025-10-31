@@ -1,21 +1,16 @@
-<<<<<<< HEAD
+
 import shutil, os
 from fastapi import APIRouter, UploadFile, File, Query,Form,HTTPException, Request, Response
 from fastapi.responses import JSONResponse
-from router.zip_utiles import extract_zip
+from zip_utiles import extract_zip
 from pydantic import BaseModel
 from datetime import datetime
 from login import login_member, get_current_user, logout_member
 from member import add_member, update_member, delete_member, get_member_by_id, get_total_member_count
 from db_conn import db_pool
-=======
-from fastapi import APIRouter, UploadFile, File, Query,Form
-from zip_utiles import extract_zip
-from db_conn import db_pool
-import shutil, os
-from datetime import datetime
-from fastapi.responses import JSONResponse
->>>>>>> maincaker
+
+
+
 
 router = APIRouter()
 
@@ -50,12 +45,6 @@ def remove_file(path: str = Query(..., description="삭제할 파일 경로")):
         db_pool.release_conn(conn)
 
 
-<<<<<<< HEAD
-=======
-
-
-
->>>>>>> maincaker
 @router.get("/files")
 async def get_files():
     conn = db_pool.get_conn()
@@ -100,12 +89,6 @@ async def get_files():
         cur.close()
         db_pool.release_conn(conn)
 
-
-<<<<<<< HEAD
-=======
-
-
->>>>>>> maincaker
 @router.post("/ocrcompleted")
 async def ocrcomplet(filepath: str = Form(...)):
     print(f"📄 OCR 완료된 파일 경로: {filepath}")
@@ -136,11 +119,7 @@ async def ocrcomplet(filepath: str = Form(...)):
         cur.close()
         db_pool.release_conn(conn)
 
-<<<<<<< HEAD
-=======
 
-
->>>>>>> maincaker
         
 @router.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
@@ -182,9 +161,6 @@ async def upload_file(file: UploadFile = File(...)):
         db_pool.release_conn(conn)
 
 
-<<<<<<< HEAD
-=======
-
 
         # router.py
 from fastapi import APIRouter, HTTPException, Request
@@ -192,9 +168,6 @@ from pydantic import BaseModel
 from login import login_member, get_current_user, logout_member
 from member import add_member, update_member, delete_member
 
-
-
->>>>>>> maincaker
 # ===== 로그인 모델 =====
 class LoginRequest(BaseModel):
     id: str
@@ -213,11 +186,7 @@ def login_endpoint(data: LoginRequest, request: Request):
 def logout_endpoint(request: Request):
     return logout_member(request.session)
 
-<<<<<<< HEAD
-# 회원 정보확인(세션확인용)
-=======
-# 회원 정보확인
->>>>>>> maincaker
+
 @router.get("/me")
 def get_current_user_endpoint(request: Request):
     result = get_current_user(request.session)
@@ -225,10 +194,7 @@ def get_current_user_endpoint(request: Request):
         raise HTTPException(status_code=401, detail=result["error"])
     return result
 
-<<<<<<< HEAD
 
-=======
->>>>>>> maincaker
 # ===== 회원 모델 =====
 # 회원가입 모델
 class AddMemberRequest(BaseModel):
@@ -267,7 +233,7 @@ def add_member_endpoint(data: AddMemberRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-<<<<<<< HEAD
+
 # 회원 정보 조회용
 @router.get("/member/me")
 def get_my_member_info(request: Request):
@@ -282,8 +248,6 @@ def get_my_member_info(request: Request):
     
     return member  # 실제 회원 정보 반환
 
-=======
->>>>>>> maincaker
 # 회원정보수정
 @router.put("/member/update")
 def update_member_endpoint(data: UpdateMemberRequest):
@@ -302,7 +266,6 @@ def update_member_endpoint(data: UpdateMemberRequest):
 
 # 회원삭제
 @router.delete("/member/delete/{member_id}")
-<<<<<<< HEAD
 def delete_member_endpoint(member_id: str, response: Response):
     success = delete_member(member_id)
     if not success:
@@ -332,7 +295,7 @@ def get_member_count():
         return {"total_members": total}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-=======
+
 def delete_member_endpoint(member_id: str):
     success = delete_member(member_id)
     if not success:
@@ -346,4 +309,4 @@ def get_member_endpoint(member_id: str):
     if not member:
         raise HTTPException(status_code=404, detail="Member not found")
     return member
->>>>>>> maincaker
+
