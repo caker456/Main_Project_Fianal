@@ -1,14 +1,17 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from router.router_m import router
+from routes import router
 from db import init_db
-
+from starlette.middleware.sessions import SessionMiddleware
 app = FastAPI(title="File Upload API")
 
 # ✅ CORS 설정
+app.add_middleware(SessionMiddleware,secret_key="your_super_secret_key",)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],  # Vite 기본 포트
+    allow_credentials=True,  # 자격 증명 허용
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -17,7 +20,9 @@ app.add_middleware(
 init_db()
 
 # ✅ 라우터 등록
-app.include_router(router, prefix="/api", tags=["Files"])
+app.include_router(router)
+
+
 
 # ✅ 메인 실행
 if __name__ == "__main__":

@@ -32,11 +32,16 @@ export default function App() {
   if (currentPage === 'signup') {
     return <SignUp onSignupSuccess={() => setCurrentPage('home')} onGoToSignIn={() => setCurrentPage('home')} />;
   }
-/*
+
+
+
+
+
   // 로그인 필요 페이지
   if (!loggedIn) {
     return <SignIn onLoginSuccess={() => setLoggedIn(true)} setCurrentPage={setCurrentPage} />;
-     return (
+  }
+    return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar currentPage={currentPage} onPageChange={setCurrentPage} />
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -52,21 +57,21 @@ export default function App() {
       </div>
     </div>
   );
-  }*/
-
-  return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar currentPage={currentPage} onPageChange={setCurrentPage} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-
-        <main className="flex-1 overflow-y-auto">
-          {currentPage === 'home' && <Home />}
-          {currentPage === 'management' && <CategoryManagement />}
-          {currentPage === 'documents' && <DocumentClassification />}
-          {currentPage === 'history' && <ChangeHistory />}
-          {currentPage === 'statistics' && <Statistics />}
-        </main>
-      </div>
-    </div>
-  );
 }
+
+  // return (
+  //   <div className="flex h-screen bg-gray-50">
+  //     <Sidebar currentPage={currentPage} onPageChange={setCurrentPage} />
+  //     <div className="flex-1 flex flex-col overflow-hidden">
+
+  //       <main className="flex-1 overflow-y-auto">
+  //         {currentPage === 'home' && <Home />}
+  //         {currentPage === 'management' && <CategoryManagement />}
+  //         {currentPage === 'documents' && <DocumentClassification />}
+  //         {currentPage === 'history' && <ChangeHistory />}
+  //         {currentPage === 'statistics' && <Statistics />}
+  //       </main>
+  //     </div>
+  //   </div>
+  // );
+
