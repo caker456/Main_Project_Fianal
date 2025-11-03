@@ -171,3 +171,25 @@ def get_total_member_count() -> int:
     finally:
         db.release_conn(conn)
 
+
+# 6️⃣ 회원 role 이름 조회
+def get_member_role_name(member_id: int) -> str | None:
+    """
+    member_id를 통해 현재 사용자의 member_role_name 반환
+    존재하지 않으면 None 반환
+    """
+    query = """
+        SELECT mr.member_role_name
+        FROM member_info mi
+        JOIN member_roles mr ON mi.member_role = mr.member_role
+        WHERE mi.member_id = %s
+    """
+    conn = db.get_conn()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(query, (member_id,))
+            result = cur.fetchone()
+            return result['member_role_name'] if result else None
+    finally:
+        db.release_conn(conn)
+

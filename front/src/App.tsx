@@ -9,12 +9,13 @@ import { Statistics } from './components/Statistics';
 import SignIn from './SignIn';
 import SignUp from './SignUp';
 import { isLoggedIn, logout } from './utils/auth';
-import { AccountDetailsForm } from './components/AccountDetails';
+import { ProfilePage } from './components/ProfilePage';
+import { AdminCrudPage } from './components/AdminCrudPage';
 
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [currentPage, setCurrentPage] = useState<
-    'home' | 'management' | 'history' | 'documents' | 'statistics' | 'signup' | 'profile'
+    'home' | 'management' | 'history' | 'documents' | 'statistics' | 'signup' | 'profile' | 'admin'
   >('home');
 
   // ✅ 세션 유지 시간 (예: 1시간 = 3600초)
@@ -74,11 +75,10 @@ export default function App() {
           {currentPage === 'documents' && <DocumentClassification />}
           {currentPage === 'history' && <ChangeHistory />}
           {currentPage === 'statistics' && <Statistics />}
+          {currentPage === 'profile' && <ProfilePage />}
 
-          {/* ✅ 프로필 수정 후 홈으로 이동 */}
-          {currentPage === 'profile' && (
-            <AccountDetailsForm goHome={() => setCurrentPage('home')} />
-          )}
+          {/* 관리자 페이지 */}
+          {currentPage === 'admin' && <AdminCrudPage />}
         </main>
       </div>
     </div>

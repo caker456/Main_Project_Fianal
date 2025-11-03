@@ -14,62 +14,75 @@ interface HeaderProps {
       | 'statistics'
       | 'profile'
   ) => void;
-  onLogout?: () => void; // 자동 로그아웃을 위해 추가
-  sessionDuration?: number; // 세션 유지 시간 (초)
+  onLogout?: () => void;
 }
 
-export function Header({
-  onPageChange,
-  onLogout,
-  sessionDuration = 3600, // 기본 1시간
-}: HeaderProps) {
+export function Header({ onPageChange, onLogout }: HeaderProps) {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-  const [remainingTime, setRemainingTime] = useState(sessionDuration);
-  const [sessionStart] = useState(Date.now()); // 현재 시점 기준 시작
+  const [remainingTime, setRemainingTime] = useState<number>(0);
 
-  // 남은 시간 계산
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - sessionStart) / 1000);
-      const remaining = sessionDuration - elapsed;
-      if (remaining <= 0) {
-        setRemainingTime(0);
-        clearInterval(interval);
+  const fetchRemainingTime = async () => {
+    try {
+      const res = await fetch('http://localhost:8000/session/remaining', {
+        method: 'GET',
+        credentials: 'include',
+      });
 
-        // 자동 로그아웃 실행 (옵션)
-        if (onLogout) {
-          alert('세션이 만료되었습니다. 다시 로그인해주세요.');
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        console.warn("Expected JSON but got HTML or invalid response", text);
+        return; // 뒤로가기 시 HTML 반환 무시
+      }
+
+      if (typeof data.remaining === 'number') {
+        setRemainingTime(data.remaining);
+        if (data.remaining <= 0 && onLogout) {
+          alert(data.message || '세션이 만료되었습니다. 다시 로그인해주세요.');
           onLogout();
         }
       } else {
-        setRemainingTime(remaining);
+        console.warn('Invalid session response:', data);
       }
+    } catch (err) {
+      console.error('Failed to fetch session remaining time', err);
+    }
+  };
+
+
+  useEffect(() => {
+    fetchRemainingTime();
+
+    const countdown = setInterval(() => {
+      setRemainingTime(prev => Math.max(prev - 1, 0));
     }, 1000);
 
-    return () => clearInterval(interval);
-  }, [sessionDuration, sessionStart, onLogout]);
+    const sync = setInterval(fetchRemainingTime, 10000);
 
-  // 남은 시간을 mm:ss로 포맷팅
+    return () => {
+      clearInterval(countdown);
+      clearInterval(sync);
+    };
+  }, [onLogout]);
+
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  // Popover 제어
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(anchorEl ? null : event.currentTarget);
   };
 
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
+  const handleClose = () => setAnchorEl(null);
 
   const open = Boolean(anchorEl);
 
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between overflow-visible">
-      {/* ✅ 세션 만료 표시 */}
       <div className="text-sm text-gray-600">
         <span className="mr-1">⏰</span>
         {remainingTime > 0 ? (
@@ -89,12 +102,8 @@ export function Header({
 
         <HelpCircle className="w-5 h-5 text-gray-600 cursor-pointer" />
 
-        {/* 사용자 메뉴 */}
         <div className="relative">
-          <div
-            className="flex items-center gap-2 cursor-pointer"
-            onClick={handleClick}
-          >
+          <div className="flex items-center gap-2 cursor-pointer" onClick={handleClick}>
             <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
               <User className="w-5 h-5 text-gray-600" />
             </div>
@@ -102,7 +111,6 @@ export function Header({
           </div>
         </div>
 
-        {/* Popover */}
         <UserPopover
           anchorEl={anchorEl}
           onClose={handleClose}
