@@ -1,12 +1,14 @@
 
 import shutil, os
-from fastapi import APIRouter, UploadFile, File, Query,Form,HTTPException, Request, Response
+from fastapi import APIRouter, UploadFile, File, Query,Form,HTTPException, Request, Response, Depends
 from fastapi.responses import JSONResponse
 from zip_utiles import extract_zip
 from pydantic import BaseModel
 from datetime import datetime
-from login import login_member, get_current_user, logout_member
-from member import add_member, update_member, delete_member, get_member_by_id, get_total_member_count
+import time
+from login import login_member, get_current_user, logout_member, get_session_remaining_info, get_current_user_with_details
+from member import add_member, update_member, delete_member, get_member_by_id, get_total_member_count, get_member_role_name
+from admin import get_all_members
 from db_conn import db_pool
 from uploads import upload_files
         # router.py
@@ -203,16 +205,28 @@ def login_endpoint(data: LoginRequest, request: Request):
 
 # 로그아웃
 @router.get("/logout")
-def logout_endpoint(request: Request):
-    return logout_member(request.session)
+def logout_endpoint(request: Request, response: Response):
+    request.session.clear()
+    # 브라우저 쿠키 삭제 (세션 키 초기화)
+    response.delete_cookie(key="session")
+    return {"message": "Logged out successfully"}
 
-
+# 로그인 한 맴버의 세션확인용
 @router.get("/me")
 def get_current_user_endpoint(request: Request):
     result = get_current_user(request.session)
     if "error" in result:
         raise HTTPException(status_code=401, detail=result["error"])
     return result
+
+# 세션의 만료시간 확인
+@router.get("/session/remaining")
+def get_session_remaining(request: Request):
+    # 🔹 디버깅 로그
+    print("Session data:", request.session)
+    print("Expiry:", request.session.get("expiry"))
+
+    return JSONResponse(content=get_session_remaining_info(request.session))
 
 
 # ===== 회원 모델 =====
@@ -286,12 +300,16 @@ def update_member_endpoint(data: UpdateMemberRequest):
 
 # 회원삭제
 @router.delete("/member/delete/{member_id}")
-def delete_member_endpoint(member_id: str, response: Response):
+def delete_member_endpoint(member_id: str, request: Request, response: Response):
     success = delete_member(member_id)
     if not success:
         raise HTTPException(status_code=404, detail="Member not found")
 
-    # 세션 쿠키 삭제 → 브라우저에서 로그아웃 처리
+    # ✅ 서버 측 세션 데이터 제거
+    if "session" in request:
+        request.session.clear()
+
+    # ✅ 클라이언트 쿠키 삭제
     response.delete_cookie(key="session")
 
     return {"message": "Member deleted successfully"}
@@ -330,3 +348,42 @@ def get_member_endpoint(member_id: str):
         raise HTTPException(status_code=404, detail="Member not found")
     return member
 
+# 회원의 role_name 반환
+@router.get("/member/role/{member_id}")
+def get_member_role_endpoint(member_id: int):
+    """
+    member_id를 통해 회원의 역할 이름(member_role_name) 반환
+    """
+    role_name = get_member_role_name(member_id)
+    if role_name is None:
+        raise HTTPException(status_code=404, detail="Member or role not found")
+    return {"member_id": member_id, "role_name": role_name}
+
+# 회원의 role 반환
+@router.get("/member/current/role")
+def current_user_endpoint(request: Request):
+    """
+    로그인한 사용자의 member_id, name, role_name 반환
+    """
+    result = get_current_user_with_details(request.session)
+    if "error" in result:
+        raise HTTPException(status_code=401, detail=result["error"])
+    return result
+
+# 회원 전체 조회
+@router.get("/admin/members")
+def get_members(skip: int = 0, limit: int = 50):
+    """
+    전체 회원 리스트 조회 (페이징 가능)
+    """
+    members = get_all_members(skip=skip, limit=limit)
+    return {
+        "items": members,
+        "itemCount": len(members)
+    }
+
+
+@router.get("/admin_test/members")
+def test_members():
+    members = get_all_members(skip=0, limit=10)
+    return {"items": members, "itemCount": len(members)}
