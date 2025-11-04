@@ -1,5 +1,6 @@
 import { Users, HardDrive } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import axios from "axios";
 import {
   BarChart as RechartsBarChart,
   Bar,
@@ -68,10 +69,11 @@ export function Home() {
   }, []);
 
   const [totalMembers, setTotalMembers] = useState<number>(0);
+  const [todayLogins, setTodayLogins] = useState<number | null>(null);
 
   useEffect(() => {
-    // 백엔드 API 호출
-    fetch("http://localhost:8000/member/count", { credentials: "include" })
+    // 총 회원 수 가져오기
+    fetch("http://localhost:8000/count/member", { credentials: "include" })
       .then(res => {
         if (!res.ok) throw new Error("Failed to fetch total members");
         return res.json();
@@ -84,6 +86,18 @@ export function Home() {
       .catch(err => {
         console.error("Error fetching total members:", err);
         setTotalMembers(0); // 기본값
+      });
+
+      // 오늘 로그인 수 가져오기
+    axios.get("http://localhost:8000/count/member/today", { withCredentials: true })
+      .then(response => {
+        if (response.data && typeof response.data.today_logins === "number") {
+          setTodayLogins(response.data.today_logins);
+        }
+      })
+      .catch(error => {
+        console.error("오늘 로그인 수를 가져오는 중 오류 발생:", error);
+        setTodayLogins(0); // 기본값
       });
       }, []);
 
@@ -226,7 +240,7 @@ export function Home() {
             </div>
             <div style={{width: 120, height: 55, left: 120, top: 0, position: 'absolute'}}>
               <div style={{left: 0, top: 0, position: 'absolute', color: '#333333', fontSize: 16, fontFamily: 'Roboto', fontWeight: '600', lineHeight: '20px', wordWrap: 'break-word'}}>금일 로그인</div>
-              <div style={{left: 30, top: 20, position: 'absolute', color: '#333333', fontSize: 22, fontFamily: 'Roboto', fontWeight: '800', lineHeight: '35px', wordWrap: 'break-word'}}>12명</div>
+              <div style={{left: 30, top: 20, position: 'absolute', color: '#333333', fontSize: 22, fontFamily: 'Roboto', fontWeight: '800', lineHeight: '35px', wordWrap: 'break-word'}}>{todayLogins !== null ? `${todayLogins}명` : '...'}</div>
             </div>
           </div>
           <div style={{left: 20, top: 115, position: 'absolute', color: '#666666', fontSize: 12, fontFamily: 'Roboto', fontWeight: '400', lineHeight: '20px', wordWrap: 'break-word'}}>접속 현황</div>
