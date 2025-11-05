@@ -5,10 +5,12 @@ from fastapi.responses import JSONResponse
 from zip_utiles import extract_zip
 from pydantic import BaseModel
 from datetime import datetime
+from typing import Optional
 import time
+from session_tracker import add_session, get_current_user_count
 from login import login_member, get_current_user, logout_member, get_session_remaining_info, get_current_user_with_details
-from member import add_member, update_member, delete_member, get_member_by_id, get_total_member_count, get_member_role_name
-from admin import get_all_members
+from member import add_member, update_member, delete_member, get_member_by_id, get_total_member_count, get_member_role_name, get_today_login_count
+from admin import admin_get_all_members, admin_delete_member_by_id, admin_search_members, admin_create_member, admin_get_member_detail, admin_update_member
 from db_conn import db_pool
 from uploads import upload_files
         # router.py
@@ -198,18 +200,31 @@ class LoginRequest(BaseModel):
 # 로그인
 @router.post("/login")
 def login_endpoint(data: LoginRequest, request: Request):
-    result = login_member(data.id, data.password, request.session)
+    # 현재 세션 쿠키(session_id) 가져오기
+    session_id = request.cookies.get("session")
+    
+    # 로그인 처리 (세션 dict와 session_id 전달)
+    result = login_member(data.id, data.password, request.session, session_id=session_id)
+    
     if "error" in result:
         raise HTTPException(status_code=401, detail=result["error"])
+    
+    # request.session에 이미 로그인 정보가 들어가 있고,
+    # SessionMiddleware가 쿠키를 자동 관리하므로 set_cookie 불필요
     return result
+
 
 # 로그아웃
 @router.get("/logout")
-def logout_endpoint(request: Request, response: Response):
+def logout_endpoint(request: Request):
+    # 서버 전체 세션에서 제거
+    session_id = request.session.get("session_id")  # 만약 login_member에서 session_id를 session에 저장했다면
+    logout_member(request.session, session_id=session_id)
+    
+    # 현재 브라우저 세션 초기화
     request.session.clear()
-    # 브라우저 쿠키 삭제 (세션 키 초기화)
-    response.delete_cookie(key="session")
     return {"message": "Logged out successfully"}
+
 
 # 로그인 한 맴버의 세션확인용
 @router.get("/me")
@@ -227,6 +242,12 @@ def get_session_remaining(request: Request):
     print("Expiry:", request.session.get("expiry"))
 
     return JSONResponse(content=get_session_remaining_info(request.session))
+
+# 현재 접속자 수 확인용 API
+@router.get("/current-users")
+def get_current_users():
+    count = get_current_user_count()
+    return {"current_users": count}
 
 
 # ===== 회원 모델 =====
@@ -266,7 +287,6 @@ def add_member_endpoint(data: AddMemberRequest):
         return {"message": "Member added successfully", "member_id": member_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 
 # 회원 정보 조회용
 @router.get("/member/me")
@@ -314,16 +334,8 @@ def delete_member_endpoint(member_id: str, request: Request, response: Response)
 
     return {"message": "Member deleted successfully"}
 
-# 회원 정보 조회 - 관리자용
-@router.get("/member/admin/{member_id}")
-def get_member_endpoint(member_id: str):
-    member = get_member_by_id(member_id)
-    if not member:
-        raise HTTPException(status_code=404, detail="Member not found")
-    return member
-
 # 전체 회원수 조회 하는 코드 
-@router.get("/member/count")
+@router.get("/count/member")
 def get_member_count():
     """
     전체 회원 수 조회 API (member_role='R2'만)
@@ -370,20 +382,116 @@ def current_user_endpoint(request: Request):
         raise HTTPException(status_code=401, detail=result["error"])
     return result
 
-# 회원 전체 조회
+# 금일 접속자수를 구함
+@router.get("/count/member/today")
+def get_today_login_count_endpoint():
+    """
+    오늘 로그인한 회원 수 조회 API
+    """
+    try:
+        today_count = get_today_login_count()
+        return {"today_logins": today_count}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =========================
+# 관리자용 회원 모델
+# =========================
+
+class AdminAddMemberRequest(BaseModel):
+    id: str
+    password: str
+    name: str
+    phone: str
+    email: str
+    member_role: str = 'R2'
+    member_grade: str = 'G2'
+
+class AdminUpdateMemberRequest(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    member_grade: Optional[str] = None
+
+# 회원 전체 조회 - 관리자용
 @router.get("/admin/members")
 def get_members(skip: int = 0, limit: int = 50):
     """
     전체 회원 리스트 조회 (페이징 가능)
     """
-    members = get_all_members(skip=skip, limit=limit)
+    members, total_count = admin_get_all_members(skip=skip, limit=limit)
     return {
         "items": members,
-        "itemCount": len(members)
+        "itemCount": total_count
     }
 
+# 회원 정보 조회 - 관리자용
+@router.get("/admin/member/{member_id}")
+def admin_get_member_endpoint(member_id: int):
+    member = admin_get_member_detail(member_id)
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+    return member
 
-@router.get("/admin_test/members")
-def test_members():
-    members = get_all_members(skip=0, limit=10)
-    return {"items": members, "itemCount": len(members)}
+# 회원 삭제 - 관리자용
+@router.delete("/admin/delete/{member_id}")
+def delete_member(member_id: int):
+    """
+    특정 회원 삭제 API
+    """
+    success = admin_delete_member_by_id(member_id)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Member ID {member_id} not found or failed to delete")
+    return {"message": f"Member ID {member_id} deleted successfully"}
+
+# 회원 검색 - 관리자용
+@router.get("/admin/search/members")
+def search_members_endpoint(query: str, skip: int = 0, limit: int = 50):
+    """
+    관리자용 회원 검색 API
+    - id 또는 name에 query 포함된 회원 조회
+    - 페이징 가능
+    """
+    try:
+        members, total_count = admin_search_members(query=query, skip=skip, limit=limit)
+        return {
+            "items": members,
+            "itemCount": total_count
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+# 회원 추가 - 관리자용
+@router.post("/admin/member/add")
+def admin_add_member_endpoint(data: AdminAddMemberRequest):
+    try:
+        member_id = admin_create_member(
+            id=data.id,
+            password=data.password,
+            name=data.name,
+            phone=data.phone,
+            email=data.email,
+            member_role=data.member_role,
+            member_grade=data.member_grade
+        )
+        if member_id is None:
+            raise HTTPException(status_code=500, detail="Failed to create member")
+        return {"message": "Admin member added successfully", "member_id": member_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+# 회원 정보 업데이트 - 관리자용
+@router.put("/admin/member/update/{member_id}")
+def admin_update_member_endpoint(member_id: int, data: AdminUpdateMemberRequest):
+    success = admin_update_member(
+        member_id=member_id,
+        name=data.name,
+        phone=data.phone,
+        email=data.email,
+        member_grade=data.member_grade
+    )
+    if not success:
+        raise HTTPException(status_code=400, detail="No fields to update or member not found")
+    return {"message": "Admin member updated successfully"}
+    

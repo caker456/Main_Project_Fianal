@@ -1,10 +1,12 @@
 # login.py
 import time
+import uuid
 from fastapi.responses import JSONResponse
 from passlib.context import CryptContext
 from psycopg2.extras import RealDictCursor
 from db_conn import PostgresDB
-from member import get_member_by_id
+from session_tracker import add_session, remove_session  # WeakSet 관리 모듈
+from fastapi import Request
 
 # ✅ 비밀번호 암호화
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -13,11 +15,17 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 db = PostgresDB()
 
 
-def login_member(user_id: str, password: str, session: dict):
+def login_member(user_id: str, password: str, session: dict, session_id: str = None):
+    """
+    로그인 처리
+    session: FastAPI Request.session
+    session_id: 세션 쿠키 값 (없으면 새로 생성)
+    """
     conn = db.get_conn()
     cursor = conn.cursor(cursor_factory=RealDictCursor)
 
     try:
+        # 회원 정보 조회
         cursor.execute(
             """
             SELECT member_id, id, password, name, member_role, member_grade
@@ -28,18 +36,29 @@ def login_member(user_id: str, password: str, session: dict):
         )
         row = cursor.fetchone()
 
+        # 아이디/비밀번호 검증
         if not row or not pwd_context.verify(password, row["password"]):
             return {"error": "아이디나 패스워드가 유효하지 않습니다."}
 
-        # ✅ 기존 세션 초기화
+        # 기존 세션 초기화
+        if session_id:
+            remove_session(session_id)  # 기존 서버 세션 삭제
         session.clear()
 
-        # ✅ 새 세션 저장
+        # 새 세션 저장
         session["user"] = {
             "member_id": int(row["member_id"]),
             "member_role": row["member_role"],
         }
         session["expiry"] = float(time.time() + 60*60)  # 60분 후 만료
+
+        # 새 session_id 없으면 생성
+        if not session_id:
+            session_id = str(uuid.uuid4())
+        
+        # 서버 전체 세션 등록
+        session_id = add_session(session, session_id)
+        session["session_id"] = session_id
 
         # member_log 업데이트
         cursor.execute(
@@ -56,22 +75,25 @@ def login_member(user_id: str, password: str, session: dict):
         )
         conn.commit()
 
-        return {"message": f"Welcome {row['name']}", "user": session["user"]}
+        return {"message": f"Welcome {row['name']}", "user": session["user"], "session_id": session_id}
 
     finally:
         cursor.close()
         db.release_conn(conn)
 
 
-def logout_member(session: dict):
+def logout_member(session: dict, session_id: str = None):
     """
     로그아웃 처리
+    session_id가 있으면 서버 전체 세션에서도 제거
     """
-    session.clear()
+    if session_id:
+        remove_session(session_id)  # 서버 세션 삭제
+
+    session.clear()  # 현재 브라우저 세션 초기화
     return {"message": "Logged out successfully"}
 
 
-# 세션에 로그인 정보가 있는지 확인
 def get_current_user(session: dict):
     user = session.get("user")
     expiry = session.get("expiry")
@@ -91,7 +113,7 @@ def get_current_user(session: dict):
 
     return user
 
-# 세션의 남은 시간 확인용
+
 def get_session_remaining_info(session: dict):
     expiry = session.get("expiry")
 
@@ -110,13 +132,10 @@ def get_session_remaining_info(session: dict):
 
     return {"remaining": int(remaining), "message": "Session active"}
 
-# member_id와 role 세션에서 반환하는 함수
-# login.py (추가)
 
 def get_current_user_with_details(session: dict):
     """
     세션에 로그인한 사용자의 member_id와 name, role_name 반환
-    기존 get_current_user를 안전하게 확장
     """
     user = session.get("user")
     expiry = session.get("expiry")
@@ -134,7 +153,6 @@ def get_current_user_with_details(session: dict):
         session.clear()
         return {"error": "Session expired"}
 
-    # DB에서 회원 정보 조회 (name, role_name)
     member_id = user.get("member_id")
     if not member_id:
         return {"error": "Invalid session user info"}
@@ -161,4 +179,3 @@ def get_current_user_with_details(session: dict):
             }
     finally:
         db.release_conn(conn)
-

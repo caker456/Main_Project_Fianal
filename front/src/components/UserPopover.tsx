@@ -128,7 +128,7 @@ export function UserPopover({
           <ListItemIcon>
             <SignOutIcon fontSize="var(--icon-fontSize-md)" />
           </ListItemIcon>
-          Logout
+          로그아웃
         </MenuItem>
       </MenuList>
     </Popover>

@@ -193,3 +193,23 @@ def get_member_role_name(member_id: int) -> str | None:
     finally:
         db.release_conn(conn)
 
+# 7️⃣ 오늘 로그인한 회원 수 조회
+def get_today_login_count() -> int:
+    """
+    오늘(date_of_connection)이 오늘이고, member_role이 'R2'인 회원 수를 반환
+    """
+    query = """
+        SELECT COUNT(*) AS today_count
+        FROM member_log ml
+        JOIN member_info mi ON ml.member_id = mi.member_id
+        WHERE ml.date_of_connection::date = CURRENT_DATE
+          AND mi.member_role = 'R2'
+    """
+    conn = db.get_conn()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(query)
+            result = cur.fetchone()
+            return result['today_count'] if result else 0
+    finally:
+        db.release_conn(conn)

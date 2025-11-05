@@ -36,7 +36,7 @@ def insert_dummy_user(db: PostgresDB, user_id: str, plain_password: str,
             RETURNING member_id
         """, (
             user_id, hashed_password, name,
-            "010-0000-0000", f"{user_id}@example.com",
+            "01000000000", f"{user_id}@example.com",
             user_role, member_grade
         ))
 
@@ -64,4 +64,12 @@ if __name__ == "__main__":
     db = PostgresDB()
     insert_dummy_user(db, "aaaa", "1234", user_role="R2", member_grade="G2", name="홍길동")
     insert_dummy_user(db, "bbbb", "1234", user_role="R2", member_grade="G2", name="김철수")
+    insert_dummy_user(db, "abcd", "1234", user_role="R1", member_grade="G2", name="관리자")
+
+     # ✅ 50명의 더미 회원 자동 생성 (qwer1 ~ qwer50)
+    for i in range(1, 51):
+        user_id = f"qwer{i}"
+        name = f"테스트회원{i}"
+        insert_dummy_user(db, user_id, "1111", user_role="R2", member_grade="G2", name=name)
+
     db.close_all()
