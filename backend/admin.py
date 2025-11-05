@@ -170,51 +170,37 @@ def admin_create_member(
         db.release_conn(conn)
 
 # 회원 정보 업데이트 (UPDATE)
-def admin_update_member(
-    member_id: int,
-    name: Optional[str] = None,
-    phone: Optional[str] = None,
-    email: Optional[str] = None,
-    member_grade: Optional[str] = None
-) -> bool:
-    """
-    member_id에 해당하는 회원 정보 업데이트
-    """
-    fields = []
-    values = []
+def admin_update_member(member_id: int, name=None, phone=None, email=None, member_grade=None) -> bool:
+    fields, values = [], []
 
-    if name is not None:
+    if name:
         fields.append("name = %s")
         values.append(name)
-    if phone is not None:
+    if phone:
         fields.append("phone = %s")
         values.append(phone)
-    if email is not None:
+    if email:
         fields.append("email = %s")
         values.append(email)
-    if member_grade is not None:
+    if member_grade:
         fields.append("member_grade = %s")
         values.append(member_grade)
 
     if not fields:
-        return False  # 변경할 내용 없음
+        return False
 
-    # update_date 기록
-    fields.append("update_date = CURRENT_TIMESTAMP")
-
-    sql = f"UPDATE member_info SET {', '.join(fields)} WHERE member_id = %s"
+    sql_info = f"UPDATE member_info SET {', '.join(fields)} WHERE member_id = %s"
     values.append(member_id)
+
+    sql_log = "UPDATE member_log SET update_date = CURRENT_TIMESTAMP WHERE member_id = %s"
 
     conn = db.get_conn()
     try:
-        with conn.cursor() as cur:
-            cur.execute(sql, tuple(values))
-            conn.commit()
-            return cur.rowcount > 0
-    except Exception as e:
-        conn.rollback()
-        print(f"❌ Error updating member_id={member_id}: {e}")
-        return False
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(sql_info, tuple(values))
+                cur.execute(sql_log, (member_id,))
+                return cur.rowcount > 0
     finally:
         db.release_conn(conn)
 

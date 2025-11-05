@@ -101,6 +101,28 @@ export function Home() {
       });
       }, []);
 
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    // 컴포넌트 마운트 시 접속자 수 가져오기
+    const fetchUsers = async () => {
+      try {
+        const res = await axios.get("http://localhost:8000/current-users", {
+          withCredentials: true
+        });
+        setCount(res.data.current_users);
+      } catch (err) {
+        console.error("Failed to fetch current users:", err);
+      }
+    };
+
+    fetchUsers();
+
+    // 일정 시간마다 갱신 가능
+    const interval = setInterval(fetchUsers, 5000); // 5초마다 갱신
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div style={{width: 1440, height: 852, position: 'relative', background: 'white'}}>
 
@@ -236,7 +258,7 @@ export function Home() {
           <div style={{width: 240, height: 55, left: 20, top: 50, position: 'absolute'}}>
             <div style={{width: 120, height: 55, left: 0, top: 0, position: 'absolute'}}>
               <div style={{left: 0, top: 0, position: 'absolute', color: '#333333', fontSize: 16, fontFamily: 'Roboto', fontWeight: '600', lineHeight: '20px', wordWrap: 'break-word'}}>현재 접속자</div>
-              <div style={{left: 35, top: 20, position: 'absolute', color: '#333333', fontSize: 22, fontFamily: 'Roboto', fontWeight: '800', lineHeight: '35px', wordWrap: 'break-word'}}>2명</div>
+              <div style={{left: 35, top: 20, position: 'absolute', color: '#333333', fontSize: 22, fontFamily: 'Roboto', fontWeight: '800', lineHeight: '35px', wordWrap: 'break-word'}}>{count}명</div>
             </div>
             <div style={{width: 120, height: 55, left: 120, top: 0, position: 'absolute'}}>
               <div style={{left: 0, top: 0, position: 'absolute', color: '#333333', fontSize: 16, fontFamily: 'Roboto', fontWeight: '600', lineHeight: '20px', wordWrap: 'break-word'}}>금일 로그인</div>

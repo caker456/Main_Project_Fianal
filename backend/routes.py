@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
 import time
+from session_tracker import add_session, get_current_user_count
 from login import login_member, get_current_user, logout_member, get_session_remaining_info, get_current_user_with_details
 from member import add_member, update_member, delete_member, get_member_by_id, get_total_member_count, get_member_role_name, get_today_login_count
 from admin import admin_get_all_members, admin_delete_member_by_id, admin_search_members, admin_create_member, admin_get_member_detail, admin_update_member
@@ -199,18 +200,31 @@ class LoginRequest(BaseModel):
 # 로그인
 @router.post("/login")
 def login_endpoint(data: LoginRequest, request: Request):
-    result = login_member(data.id, data.password, request.session)
+    # 현재 세션 쿠키(session_id) 가져오기
+    session_id = request.cookies.get("session")
+    
+    # 로그인 처리 (세션 dict와 session_id 전달)
+    result = login_member(data.id, data.password, request.session, session_id=session_id)
+    
     if "error" in result:
         raise HTTPException(status_code=401, detail=result["error"])
+    
+    # request.session에 이미 로그인 정보가 들어가 있고,
+    # SessionMiddleware가 쿠키를 자동 관리하므로 set_cookie 불필요
     return result
+
 
 # 로그아웃
 @router.get("/logout")
-def logout_endpoint(request: Request, response: Response):
+def logout_endpoint(request: Request):
+    # 서버 전체 세션에서 제거
+    session_id = request.session.get("session_id")  # 만약 login_member에서 session_id를 session에 저장했다면
+    logout_member(request.session, session_id=session_id)
+    
+    # 현재 브라우저 세션 초기화
     request.session.clear()
-    # 브라우저 쿠키 삭제 (세션 키 초기화)
-    response.delete_cookie(key="session")
     return {"message": "Logged out successfully"}
+
 
 # 로그인 한 맴버의 세션확인용
 @router.get("/me")
@@ -228,6 +242,12 @@ def get_session_remaining(request: Request):
     print("Expiry:", request.session.get("expiry"))
 
     return JSONResponse(content=get_session_remaining_info(request.session))
+
+# 현재 접속자 수 확인용 API
+@router.get("/current-users")
+def get_current_users():
+    count = get_current_user_count()
+    return {"current_users": count}
 
 
 # ===== 회원 모델 =====
