@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Folder, ChevronRight } from 'lucide-react';
 import {
   PieChart as RechartsPieChart,
@@ -27,105 +27,81 @@ interface FolderStats {
   }[];
 }
 
+interface OverallStats {
+  totalFiles: number;
+  classifiedFiles: number;
+  unclassifiedFiles: number;
+  classificationRate: number;
+  documentTypeDistribution: {
+    name: string;
+    count: number;
+  }[];
+}
+
 export function Statistics() {
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+  const [overallStats, setOverallStats] = useState<OverallStats | null>(null);
+  const [folderStats, setFolderStats] = useState<FolderStats[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // 전체 카테고리별 파일 분류 현황
-  const overallCategoryData = [
-    { name: '의안원문', value: 450, color: '#3B82F6' },
-    { name: '심사보고서', value: 320, color: '#8B5CF6' },
-    { name: '검토보고서', value: 280, color: '#10B981' },
-    { name: '위원회의결안', value: 210, color: '#F59E0B' },
-    { name: '비용추계서', value: 180, color: '#EF4444' },
-    { name: '본회의수정안', value: 150, color: '#6366F1' },
-    { name: '미분류', value: 120, color: '#9CA3AF' }
-  ];
+  // 색상 배열
+  const colors = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#6366F1', '#EC4899', '#14B8A6', '#F97316'];
 
-  const totalFiles = overallCategoryData.reduce((sum, item) => sum + item.value, 0);
-  const classifiedFiles = totalFiles - (overallCategoryData.find(item => item.name === '미분류')?.value || 0);
-  const overallClassificationRate = ((classifiedFiles / totalFiles) * 100).toFixed(1);
+  // 데이터 로드
+  useEffect(() => {
+    const fetchStatistics = async () => {
+      try {
+        // 전체 통계 조회
+        const overallResponse = await fetch('http://localhost:8000/api/statistics/overall');
+        const overallData = await overallResponse.json();
 
-  // 폴더별 통계 데이터
-  const folderStats: FolderStats[] = [
-    {
-      name: '재무보고서',
-      totalFiles: 285,
-      classifiedFiles: 270,
-      unclassifiedFiles: 15,
-      classificationRate: 94.7,
-      categories: [
-        { name: '의안원문', count: 120, percentage: 42.1 },
-        { name: '심사보고서', count: 80, percentage: 28.1 },
-        { name: '검토보고서', count: 70, percentage: 24.6 },
-        { name: '미분류', count: 15, percentage: 5.3 }
-      ]
-    },
-    {
-      name: '인사관리',
-      totalFiles: 198,
-      classifiedFiles: 185,
-      unclassifiedFiles: 13,
-      classificationRate: 93.4,
-      categories: [
-        { name: '위원회의결안', count: 90, percentage: 45.5 },
-        { name: '심사보고서', count: 60, percentage: 30.3 },
-        { name: '검토보고서', count: 35, percentage: 17.7 },
-        { name: '미분류', count: 13, percentage: 6.6 }
-      ]
-    },
-    {
-      name: '마케팅기획',
-      totalFiles: 156,
-      classifiedFiles: 142,
-      unclassifiedFiles: 14,
-      classificationRate: 91.0,
-      categories: [
-        { name: '의안원문', count: 70, percentage: 44.9 },
-        { name: '비용추계서', count: 45, percentage: 28.8 },
-        { name: '검토보고서', count: 27, percentage: 17.3 },
-        { name: '미분류', count: 14, percentage: 9.0 }
-      ]
-    },
-    {
-      name: '경영관리',
-      totalFiles: 243,
-      classifiedFiles: 220,
-      unclassifiedFiles: 23,
-      classificationRate: 90.5,
-      categories: [
-        { name: '심사보고서', count: 95, percentage: 39.1 },
-        { name: '의안원문', count: 75, percentage: 30.9 },
-        { name: '위원회의결안', count: 50, percentage: 20.6 },
-        { name: '미분류', count: 23, percentage: 9.5 }
-      ]
-    },
-    {
-      name: '프로젝트관리',
-      totalFiles: 189,
-      classifiedFiles: 165,
-      unclassifiedFiles: 24,
-      classificationRate: 87.3,
-      categories: [
-        { name: '검토보고서', count: 80, percentage: 42.3 },
-        { name: '비용추계서', count: 50, percentage: 26.5 },
-        { name: '위원회의결안', count: 35, percentage: 18.5 },
-        { name: '미분류', count: 24, percentage: 12.7 }
-      ]
-    },
-    {
-      name: '기술개발',
-      totalFiles: 219,
-      classifiedFiles: 188,
-      unclassifiedFiles: 31,
-      classificationRate: 85.8,
-      categories: [
-        { name: '비용추계서', count: 85, percentage: 38.8 },
-        { name: '의안원문', count: 60, percentage: 27.4 },
-        { name: '본회의수정안', count: 43, percentage: 19.6 },
-        { name: '미분류', count: 31, percentage: 14.2 }
-      ]
-    }
-  ];
+        if (overallData.success) {
+          setOverallStats({
+            totalFiles: overallData.totalFiles,
+            classifiedFiles: overallData.classifiedFiles,
+            unclassifiedFiles: overallData.unclassifiedFiles,
+            classificationRate: overallData.classificationRate,
+            documentTypeDistribution: overallData.documentTypeDistribution
+          });
+        }
+
+        // 폴더별 통계 조회
+        const foldersResponse = await fetch('http://localhost:8000/api/statistics/folders');
+        const foldersData = await foldersResponse.json();
+
+        if (foldersData.success) {
+          setFolderStats(foldersData.folders);
+        }
+
+        setLoading(false);
+      } catch (error) {
+        console.error('통계 데이터 로드 실패:', error);
+        setLoading(false);
+      }
+    };
+
+    fetchStatistics();
+  }, []);
+
+  // 로딩 중
+  if (loading || !overallStats) {
+    return (
+      <div style={{ width: '1440px', minHeight: '900px', position: 'relative', background: '#F9F9F9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ color: '#666666', fontSize: '14px', fontFamily: 'Roboto' }}>통계 데이터를 불러오는 중...</div>
+      </div>
+    );
+  }
+
+  // 전체 카테고리별 파일 분류 현황 (차트용 데이터)
+  const overallCategoryData = overallStats.documentTypeDistribution.map((item, index) => ({
+    name: item.name,
+    value: item.count,
+    color: item.name === '미분류' ? '#9CA3AF' : colors[index % colors.length]
+  }));
+
+  const totalFiles = overallStats.totalFiles;
+  const classifiedFiles = overallStats.classifiedFiles;
+  const overallClassificationRate = overallStats.classificationRate.toFixed(1);
 
   const selectedFolderData = selectedFolder
     ? folderStats.find(f => f.name === selectedFolder)
@@ -136,7 +112,7 @@ export function Statistics() {
     name: cat.name,
     count: cat.count,
     percentage: cat.percentage,
-    color: cat.name === '미분류' ? '#9CA3AF' : ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#6366F1'][index]
+    color: cat.name === '미분류' ? '#9CA3AF' : colors[index % colors.length]
   })) || [];
 
   return (
@@ -150,7 +126,7 @@ export function Statistics() {
           </div>
 
           {/* 상단 영역 - 전체 분류 현황 */}
-          <div style={{ width: '1336px', height: '340px', left: '24px', top: '60px', position: 'absolute', background: 'white', borderRadius: '6px', border: '1px #E5E5E5 solid' }}>
+          <div style={{ width: '1336px', height: '500px', left: '24px', top: '60px', position: 'absolute', background: 'white', borderRadius: '6px', border: '1px #E5E5E5 solid' }}>
             <div style={{ padding: '24px' }}>
               {/* 제목 */}
               <div style={{ marginBottom: '20px' }}>
@@ -199,7 +175,7 @@ export function Statistics() {
               </div>
 
               {/* 차트 */}
-              <div style={{ width: '100%', height: '180px' }}>
+              <div style={{ width: '100%', height: '240px' }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <RechartsPieChart>
                     <Pie
@@ -208,7 +184,7 @@ export function Statistics() {
                       cy="50%"
                       labelLine={false}
                       label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={70}
+                      outerRadius={90}
                       dataKey="value"
                     >
                       {overallCategoryData.map((entry, index) => (
@@ -227,7 +203,7 @@ export function Statistics() {
                       verticalAlign="bottom"
                       height={36}
                       iconType="circle"
-                      wrapperStyle={{ fontSize: '11px' }}
+                      wrapperStyle={{ fontSize: '11px', paddingTop: '20px' }}
                     />
                   </RechartsPieChart>
                 </ResponsiveContainer>
@@ -236,7 +212,7 @@ export function Statistics() {
           </div>
 
           {/* 하단 영역 - 폴더별 분류 현황 */}
-          <div style={{ width: '1336px', height: '415px', left: '24px', top: '420px', position: 'absolute', background: 'white', borderRadius: '6px', border: '1px #E5E5E5 solid' }}>
+          <div style={{ width: '1336px', height: '475px', left: '24px', top: '580px', position: 'absolute', background: 'white', borderRadius: '6px', border: '1px #E5E5E5 solid' }}>
 
             {/* 제목 */}
             <div style={{ padding: '20px 24px', borderBottom: '1px solid #E5E5E5' }}>
@@ -248,7 +224,7 @@ export function Statistics() {
               </div>
             </div>
 
-            <div style={{ display: 'flex', height: '345px' }}>
+            <div style={{ display: 'flex', height: '405px' }}>
               {/* 왼쪽 - 폴더 리스트 */}
               <div style={{ width: '400px', borderRight: '1px solid #E5E5E5', overflowY: 'auto' }}>
                 {folderStats.map((folder) => (
@@ -344,7 +320,7 @@ export function Statistics() {
                     </div>
 
                     {/* 차트 */}
-                    <div style={{ width: '100%', height: '220px' }}>
+                    <div style={{ width: '100%', height: '280px' }}>
                       <ResponsiveContainer width="100%" height="100%">
                         <RechartsBarChart data={selectedFolderChartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#F0F0F0" />

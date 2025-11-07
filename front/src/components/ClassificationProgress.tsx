@@ -1,91 +1,88 @@
 import { useState, useEffect } from 'react';
 
-interface OCRProgressProps {
+interface ClassificationProgressProps {
   selectedFiles: Set<string>;
   totalFiles: number;
   onCancel?: () => void;
   onComplete?: () => void;
 }
 
-interface FileOCRStatus {
+interface FileClassificationStatus {
   fileName: string;
   status: 'waiting' | 'processing' | 'completed' | 'error';
   progress: number;
-  pagesProcessed?: number;
-  totalPages?: number;
+  기관?: string;
+  문서유형?: string;
+  confidence?: {
+    기관?: number;
+    문서유형?: number;
+  };
   error?: string;
-  fpath : string;
+  fpath: string;
 }
 
-export function OCRProgress({
+export function ClassificationProgress({
   selectedFiles,
   totalFiles,
   onCancel,
   onComplete
-}: OCRProgressProps) {
-  const [startTimes, setStartTimes] = useState<Record<number, number>>({});
+}: ClassificationProgressProps) {
   const [overallProgress, setOverallProgress] = useState(0);
   const [currentFile, setCurrentFile] = useState(1);
-  const [filesProgress, setFilesProgress] = useState<FileOCRStatus[]>([]);
+  const [filesProgress, setFilesProgress] = useState<FileClassificationStatus[]>([]);
   const [startTime] = useState(new Date());
   const [estimatedEndTime, setEstimatedEndTime] = useState<Date>(new Date(Date.now() + 3 * 60 * 1000));
   const [pdfList, setPdfList] = useState<any[]>([]);
-  const [isProcessing, setIsProcessing] = useState(false); // OCR 처리 중인지 확인
+  const [isProcessing, setIsProcessing] = useState(false);
 
+  // 파일 목록 로드
   useEffect(() => {
-  fetch("http://localhost:8000/api/files", {
-    credentials: 'include'  // 세션 쿠키 포함
-  })
-    .then((res) => {
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
-      }
-      return res.json();
+    fetch("http://localhost:8000/api/files", {
+      credentials: 'include'
     })
-    .then((data) => {
-      // 새로운 API 응답 형식 처리
-      const filePaths = data.file_paths || [];
-      const metadata = data.metadata || {};
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then((data) => {
+        const filePaths = data.file_paths || [];
+        const metadata = data.metadata || {};
 
-      // 메타데이터와 파일 경로를 결합
-      const pdfListWithMetadata = filePaths.map((path: string) => ({
-        filename: path,  // 상대 경로 (트리 구축용)
-        page_count: metadata[path]?.page_count || 0,
-        full_path: metadata[path]?.full_path || path  // DB 전체 경로 (OCR용)
-      }));
+        const pdfListWithMetadata = filePaths.map((path: string) => ({
+          filename: path,
+          page_count: metadata[path]?.page_count || 0,
+          full_path: metadata[path]?.full_path || path
+        }));
 
-      console.log("📋 파일 목록 로드:", pdfListWithMetadata);
-      setPdfList(pdfListWithMetadata);
-    })
-    .catch((err) => console.error("파일 목록 불러오기 오류:", err));
+        console.log("📋 파일 목록 로드 (분류용):", pdfListWithMetadata);
+        setPdfList(pdfListWithMetadata);
+      })
+      .catch((err) => console.error("파일 목록 불러오기 오류:", err));
   }, []);
+
   const selectedFileInfo = Array.from(selectedFiles).map((filepath) => {
     const match = pdfList.find((f) => f.filename === filepath);
     return {
-      filename: filepath, // 상대 경로 (화면 표시용)
-      full_path: match?.full_path || filepath, // DB 전체 경로 (OCR 처리용)
+      filename: filepath,
+      full_path: match?.full_path || filepath,
       page_count: match ? match.page_count : 0,
     };
   });
 
-
   useEffect(() => {
-    // 이미 처리 중이거나 파일 목록이 없으면 중단
     if (pdfList.length === 0 || isProcessing) return;
 
-    // 처리 시작 플래그 설정
     setIsProcessing(true);
-    console.log("🚀 OCR 처리 시작 - 중복 실행 방지 활성화");
+    console.log("🚀 분류 처리 시작 - 중복 실행 방지 활성화");
 
     // 상태 초기화
-    const initialProgress: FileOCRStatus[] = selectedFileInfo.map((file, i) => {
-      // 파일명만 추출 (표시용)
+    const initialProgress: FileClassificationStatus[] = selectedFileInfo.map((file, i) => {
       const displayName = file.filename.split(/[\\/]/).pop() ?? `문서${i + 1}.pdf`;
-
-      // DB에서 가져온 전체 경로 사용
       const dbPath = file.full_path;
 
-      console.log(`📝 OCR 파일 준비 [${i + 1}/${selectedFileInfo.length}]: ${displayName}`);
+      console.log(`📝 분류 파일 준비 [${i + 1}/${selectedFileInfo.length}]: ${displayName}`);
       console.log(`   상대 경로: ${file.filename}`);
       console.log(`   DB 전체 경로: ${dbPath}`);
 
@@ -93,27 +90,19 @@ export function OCRProgress({
         fileName: displayName,
         status: 'waiting',
         progress: 0,
-        totalPages: file.page_count,
-        pagesProcessed: 0,
-        fpath: dbPath, // DB와 일치하는 전체 경로
+        fpath: dbPath,
       };
     });
 
     setFilesProgress(initialProgress);
 
-    const estimatedDuration = totalFiles * 20 * 1000;
+    const estimatedDuration = totalFiles * 10 * 1000; // 분류는 OCR보다 빠름
     setEstimatedEndTime(new Date(Date.now() + estimatedDuration));
 
-    // OCR 처리 함수
-    const processOCR = async () => {
+    // 분류 처리 함수
+    const processClassification = async () => {
       for (let fileIndex = 0; fileIndex < initialProgress.length; fileIndex++) {
         const file = initialProgress[fileIndex];
-
-        // 시작 시점 기록
-        setStartTimes(prev => ({
-          ...prev,
-          [fileIndex]: Date.now(),
-        }));
 
         // 처리 중 상태로 변경
         setFilesProgress(prev => {
@@ -125,54 +114,77 @@ export function OCRProgress({
           return newProgress;
         });
 
-        // 진행률 시뮬레이션 (UI용)
+        // 진행률 시뮬레이션
         const progressInterval = setInterval(() => {
           setFilesProgress(prev => {
             const newProgress = [...prev];
             if (newProgress[fileIndex].progress < 90) {
               newProgress[fileIndex].progress = Math.min(newProgress[fileIndex].progress + 10, 90);
-              const currentFilePages = newProgress[fileIndex].totalPages ?? 10;
-              newProgress[fileIndex].pagesProcessed = Math.floor((newProgress[fileIndex].progress / 100) * currentFilePages);
             }
             return newProgress;
           });
-        }, 200);
+        }, 100);
 
         try {
-          // OCR 처리 요청
           console.log(`\n${'='.repeat(60)}`);
-          console.log(`🚀 OCR 요청 전송 중...`);
+          console.log(`📋 분류 요청 전송 중...`);
           console.log(`   파일명: ${file.fileName}`);
           console.log(`   경로: ${file.fpath}`);
           console.log(`${'='.repeat(60)}\n`);
 
-          const formData = new FormData();
-          formData.append("filepath", file.fpath);
+          // 먼저 파일의 doc_id를 가져와야 함
+          const filesRes = await fetch("http://localhost:8000/api/files", {
+            credentials: 'include'
+          });
+          const filesData = await filesRes.json();
+          const metadata = filesData.metadata || {};
 
-          const ocrResponse = await fetch("http://localhost:8000/api/ocr/process", {
+          // 상대 경로로 메타데이터 찾기
+          let doc_id = null;
+          for (const [path, meta] of Object.entries(metadata)) {
+            const fullPath = (meta as any).full_path;
+            if (fullPath === file.fpath) {
+              doc_id = (meta as any).doc_id;
+              break;
+            }
+          }
+
+          if (!doc_id) {
+            throw new Error(`파일의 doc_id를 찾을 수 없습니다: ${file.fpath}`);
+          }
+
+          console.log(`   doc_id: ${doc_id}`);
+
+          // 분류 요청
+          const formData = new FormData();
+          formData.append("doc_id", doc_id.toString());
+
+          const classifyResponse = await fetch("http://localhost:8000/api/classify/document", {
             method: "POST",
             body: formData,
           });
 
-          const ocrData = await ocrResponse.json();
+          const classifyData = await classifyResponse.json();
 
-          if (!ocrData.success) {
-            console.error("❌ OCR 실패:", ocrData.error || ocrData.message);
-            throw new Error(ocrData.error || ocrData.message || 'OCR 처리 실패');
+          if (!classifyData.success) {
+            console.error("❌ 분류 실패:", classifyData.error);
+            throw new Error(classifyData.error || '분류 처리 실패');
           }
 
-          console.log("✅ OCR 처리 완료:", ocrData);
+          console.log("✅ 문서 분류 완료:", classifyData);
+          console.log(`   기관: ${classifyData.기관} (신뢰도: ${(classifyData.confidence?.기관 * 100 || 0).toFixed(1)}%)`);
+          console.log(`   문서유형: ${classifyData.문서유형} (신뢰도: ${(classifyData.confidence?.문서유형 * 100 || 0).toFixed(1)}%)`);
 
           // 진행률 완료
           clearInterval(progressInterval);
           setFilesProgress(prev => {
             const newProgress = [...prev];
             newProgress[fileIndex].progress = 100;
-            newProgress[fileIndex].pagesProcessed = newProgress[fileIndex].totalPages ?? 0;
+            newProgress[fileIndex].기관 = classifyData.기관;
+            newProgress[fileIndex].문서유형 = classifyData.문서유형;
+            newProgress[fileIndex].confidence = classifyData.confidence;
             return newProgress;
           });
-
-          // OCR만 처리 (분류는 별도 단계에서 수행)
 
           // 완료 상태로 변경
           setFilesProgress(prev => {
@@ -183,7 +195,7 @@ export function OCRProgress({
 
         } catch (err) {
           console.error(`\n${'='.repeat(60)}`);
-          console.error("❌ OCR/분류 처리 실패");
+          console.error("❌ 분류 처리 실패");
           console.error(`   파일: ${file.fileName}`);
           console.error(`   에러: ${err}`);
           console.error(`${'='.repeat(60)}\n`);
@@ -206,21 +218,18 @@ export function OCRProgress({
 
       // 모든 파일 처리 완료
       console.log(`\n${'='.repeat(60)}`);
-      console.log(`✅ 전체 OCR 처리 완료`);
+      console.log(`✅ 전체 분류 처리 완료`);
       console.log(`   총 ${initialProgress.length}개 파일 처리`);
-      console.log(`   성공: ${initialProgress.filter((_, i) => i < fileIndex + 1).length}개`);
       console.log(`${'='.repeat(60)}\n`);
     };
 
-    // OCR 처리 시작
-    processOCR();
+    // 분류 처리 시작
+    processClassification();
 
-    // cleanup
     return () => {
-      console.log("🧹 OCRProgress 컴포넌트 언마운트");
+      console.log("🧹 ClassificationProgress 컴포넌트 언마운트");
     };
   }, [pdfList]);
-
 
   const completedCount = filesProgress.filter(f => f.status === 'completed').length;
   const errorCount = filesProgress.filter(f => f.status === 'error').length;
@@ -243,16 +252,16 @@ export function OCRProgress({
 
             {/* 상단 경로 */}
             <div style={{ left: '24px', top: '25px', position: 'absolute' }}>
-              <span style={{ color: '#666666', fontSize: '12px', fontFamily: 'Roboto', fontWeight: '600', lineHeight: '16px' }}>문서 &gt;</span>
+              <span style={{ color: '#666666', fontSize: '12px', fontFamily: 'Roboto', fontWeight: '600', lineHeight: '16px' }}>관리 &gt;</span>
               <span style={{ color: 'black', fontSize: '12px', fontFamily: 'Roboto', fontWeight: '600', lineHeight: '16px' }}> </span>
-              <span style={{ color: '#0070F3', fontSize: '12px', fontFamily: 'Roboto', fontWeight: '600', lineHeight: '16px' }}>OCR 텍스트 추출</span>
+              <span style={{ color: '#0070F3', fontSize: '12px', fontFamily: 'Roboto', fontWeight: '600', lineHeight: '16px' }}>카테고리 분류</span>
             </div>
 
             <div style={{ width: '1336px', height: '800px', left: '24px', top: '48px', position: 'absolute', background: 'white', borderRadius: '6px', border: '1px #E5E5E5 solid' }}>
 
               {/* 제목 */}
               <div style={{ left: '17px', top: '17px', position: 'absolute', color: '#666666', fontSize: '12px', fontFamily: 'Roboto', fontWeight: '400', lineHeight: '16px' }}>
-                PDF 문서에서 텍스트를 추출하고 있습니다.
+                문서를 카테고리별로 자동 분류하고 있습니다.
               </div>
 
               {/* 메인 콘텐츠 */}
@@ -268,7 +277,7 @@ export function OCRProgress({
                 {/* 상태 텍스트 */}
                 <div style={{ width: '400px', left: '451px', top: '110px', position: 'absolute', textAlign: 'center' }}>
                   <div style={{ color: '#333333', fontSize: '14px', fontFamily: 'Roboto', fontWeight: '700', lineHeight: '19px', marginBottom: '8px' }}>
-                    OCR 텍스트 추출 진행 중...
+                    카테고리 분류 진행 중...
                   </div>
                   <div style={{ color: '#999999', fontSize: '12px', fontFamily: 'Roboto', fontWeight: '400', lineHeight: '16px' }}>
                     {currentFile}/{totalFiles} 파일 처리 중
@@ -343,12 +352,8 @@ export function OCRProgress({
                 <div style={{ width: '1302px', height: '250px', left: '0px', top: '400px', position: 'absolute', border: '1px solid #E5E5E5', borderRadius: '4px', overflowY: 'auto' }}>
                   <div style={{ padding: '12px' }}>
                     <div style={{ color: '#333333', fontSize: '12px', fontFamily: 'Roboto', fontWeight: '700', marginBottom: '12px' }}>
-                      파일별 OCR 진행 상태
-                      
+                      파일별 분류 진행 상태
                     </div>
-                    <div>
-                        
-                      </div>
 
                     {filesProgress.map((file, index) => (
                       <div
@@ -367,21 +372,23 @@ export function OCRProgress({
                         <div style={{ flex: 1, fontSize: '11px', color: '#333333' }}>
                           {file.fileName}
                         </div>
-                        <div style={{ width: '150px', fontSize: '11px', textAlign: 'center' }}>
+                        <div style={{ width: '250px', fontSize: '11px', textAlign: 'center' }}>
                           {file.status === 'waiting' && <span style={{ color: '#999999' }}>대기 중</span>}
                           {file.status === 'processing' && (
-                            <span style={{ color: '#3B82F6' }}>
-                              처리 중 ({file.pagesProcessed}/{file.totalPages} 페이지)
+                            <span style={{ color: '#3B82F6' }}>분류 중...</span>
+                          )}
+                          {file.status === 'completed' && (
+                            <span style={{ color: '#10B981' }}>
+                              완료: {file.기관} / {file.문서유형}
                             </span>
                           )}
-                          {file.status === 'completed' && <span style={{ color: '#10B981' }}>완료</span>}
                           {file.status === 'error' && <span style={{ color: '#EF4444' }}>오류</span>}
                         </div>
                         <div style={{ width: '80px', textAlign: 'right', fontSize: '11px', color: '#666666' }}>
                           {file.progress}%
                         </div>
                       </div>
-                    ))} 
+                    ))}
                   </div>
                 </div>
 

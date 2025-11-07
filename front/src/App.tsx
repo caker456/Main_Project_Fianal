@@ -2,20 +2,19 @@ import { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { Home } from './components/Home';
-import { CategoryManagement } from './components/CategoryManagement';
+import { CategoryClassification } from './components/CategoryClassification';
 import { ChangeHistory } from './components/ChangeHistory';
 import { DocumentClassification } from './components/DocumentClassification';
 import { Statistics } from './components/Statistics';
 import SignIn from './SignIn';
 import SignUp from './SignUp';
 import { isLoggedIn, logout } from './utils/auth';
-import { ProfilePage } from './components/ProfilePage';
-import { AdminCrudPage } from './components/AdminCrudPage';
+import { AccountDetailsForm } from './components/AccountDetails';
 
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [currentPage, setCurrentPage] = useState<
-    'home' | 'management' | 'history' | 'documents' | 'statistics' | 'signup' | 'profile' | 'admin'
+    'home' | 'management' | 'history' | 'documents' | 'statistics' | 'signup' | 'profile'
   >('home');
 
   // ✅ 세션 유지 시간 (예: 1시간 = 3600초)
@@ -71,14 +70,15 @@ export default function App() {
 
         <main className="flex-1 overflow-y-auto">
           {currentPage === 'home' && <Home />}
-          {currentPage === 'management' && <CategoryManagement />}
+          {currentPage === 'management' && <CategoryClassification />}
           {currentPage === 'documents' && <DocumentClassification />}
           {currentPage === 'history' && <ChangeHistory />}
           {currentPage === 'statistics' && <Statistics />}
-          {currentPage === 'profile' && <ProfilePage />}
 
-          {/* 관리자 페이지 */}
-          {currentPage === 'admin' && <AdminCrudPage />}
+          {/* ✅ 프로필 수정 후 홈으로 이동 */}
+          {currentPage === 'profile' && (
+            <AccountDetailsForm goHome={() => setCurrentPage('home')} />
+          )}
         </main>
       </div>
     </div>

@@ -63,9 +63,7 @@ const SignInContainer = styled(Stack)(({ theme }) => ({
 interface SignInProps {
   disableCustomTheme?: boolean;
   onLoginSuccess?: () => void;
-  setCurrentPage?: (
-    page: 'home' | 'management' | 'history' | 'documents' | 'statistics' | 'signup'
-  ) => void;
+  setCurrentPage?: (page: 'home' | 'management' | 'history' | 'documents' | 'statistics' | 'signup') => void;
 }
 
 export default function SignIn(props: SignInProps) {
@@ -75,17 +73,7 @@ export default function SignIn(props: SignInProps) {
   const [password, setPassword] = React.useState('');
   const [passwordError, setPasswordError] = React.useState(false);
   const [passwordErrorMessage, setPasswordErrorMessage] = React.useState('');
-  const [rememberMe, setRememberMe] = React.useState(false);
   const [open, setOpen] = React.useState(false);
-
-  // 컴포넌트 마운트 시 LocalStorage에서 ID 불러오기
-  React.useEffect(() => {
-    const savedId = localStorage.getItem('rememberedId');
-    if (savedId) {
-      setId(savedId);
-      setRememberMe(true);
-    }
-  }, []);
 
   const handleClickOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
@@ -99,7 +87,7 @@ export default function SignIn(props: SignInProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, password }),
-        credentials: 'include',
+        credentials: 'include', // 세션 쿠키 사용 시
       });
 
       if (!res.ok) {
@@ -115,14 +103,6 @@ export default function SignIn(props: SignInProps) {
 
       const userData = await res.json();
       console.log('로그인 성공, 사용자 정보:', userData.user);
-
-      // Remember me 처리
-      if (rememberMe) {
-        localStorage.setItem('rememberedId', id);
-      } else {
-        localStorage.removeItem('rememberedId');
-      }
-
       props.onLoginSuccess?.();
     } catch (error: any) {
       alert(error.message || '로그인 실패: 서버 오류');
@@ -141,7 +121,7 @@ export default function SignIn(props: SignInProps) {
       setIdErrorMessage('');
     }
 
-    if (!password || password.length < 3) {
+    if (!password || password.length < 3) { // 비밀번호 최소 3자리
       setPasswordError(true);
       setPasswordErrorMessage('Password must be at least 3 characters long.');
       isValid = false;
@@ -164,7 +144,7 @@ export default function SignIn(props: SignInProps) {
             variant="h4"
             sx={{ width: '100%', fontSize: 'clamp(2rem, 10vw, 2.15rem)' }}
           >
-            로그인
+            Sign in
           </Typography>
           <Box
             component="form"
@@ -205,27 +185,20 @@ export default function SignIn(props: SignInProps) {
                 fullWidth
                 variant="outlined"
                 color={passwordError ? 'error' : 'primary'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={password}                   
+                onChange={(e) => setPassword(e.target.value)} 
               />
             </FormControl>
             <FormControlLabel
-              control={
-                <Checkbox
-                  value="remember"
-                  color="primary"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                />
-              }
-              label="아이디 저장"
+              control={<Checkbox value="remember" color="primary" />}
+              label="Remember me"
             />
             <ForgotPassword open={open} handleClose={handleClose} />
             <Button type="submit" fullWidth variant="contained" onClick={validateInputs}>
-              로그인
+              Sign in
             </Button>
             <Button variant="text" onClick={handleClickOpen} sx={{ alignSelf: 'center' }}>
-              비밀번호 찾기
+              Forgot your password?
             </Button>
           </Box>
           <Divider>or</Divider>
@@ -247,13 +220,13 @@ export default function SignIn(props: SignInProps) {
               Sign in with Facebook
             </Button>
             <Typography sx={{ textAlign: 'center' }}>
-              아직 계정이 없으신가요?{' '}
+              Don&apos;t have an account?{' '}
               <Button
                 variant="text"
                 onClick={() => props.setCurrentPage?.('signup')}
                 sx={{ alignSelf: 'center' }}
               >
-                회원가입
+                Sign up
               </Button>
             </Typography>
           </Box>

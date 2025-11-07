@@ -176,7 +176,7 @@ export default function SignUp(props: { disableCustomTheme?: boolean }) {
             variant="h4"
             sx={{ width: '100%', fontSize: 'clamp(2rem, 10vw, 2.15rem)' }}
           >
-            회원가입
+            Sign up
           </Typography>
           <Box
             component="form"
@@ -212,7 +212,7 @@ export default function SignUp(props: { disableCustomTheme?: boolean }) {
                 color={passwordError ? 'error' : 'primary'}
               />
             <FormControl>
-              <FormLabel htmlFor="name">Name</FormLabel>
+              <FormLabel htmlFor="name">Full name</FormLabel>
               <TextField
                 autoComplete="name"
                 name="name"
@@ -256,7 +256,7 @@ export default function SignUp(props: { disableCustomTheme?: boolean }) {
             </FormControl>
             <FormControlLabel
               control={<Checkbox value="allowExtraEmails" color="primary" />}
-              label="이메일로 업데이트를 받고 싶습니다."
+              label="I want to receive updates via email."
             />
             <Button
               type="submit"
@@ -264,7 +264,7 @@ export default function SignUp(props: { disableCustomTheme?: boolean }) {
               variant="contained"
               onClick={validateInputs}
             >
-              회원가입
+              Sign up
             </Button>
           </Box>
           <Divider>
@@ -288,13 +288,13 @@ export default function SignUp(props: { disableCustomTheme?: boolean }) {
               Sign up with Facebook
             </Button>
             <Typography sx={{ textAlign: 'center' }}>
-              이미 계정이 있으신가요?{' '}
+              Already have an account?{' '}
               <Button
                 variant="text"
                 onClick={() => props.onGoToSignIn?.()} // props로 함수 전달
                 sx={{ alignSelf: 'center' }}
               >
-                로그인
+                Sign in
               </Button>
             </Typography>
           </Box>

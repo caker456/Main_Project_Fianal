@@ -1,14 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Folder, ChevronRight, ChevronDown, FileText } from 'lucide-react';
 
 interface HistoryItem {
   id: string;
   fileName: string;
-  fullPath: string; // 전체 경로 (예: "재무보고서/분기별/2024년_1분기_재무보고서.pdf")
+  fullPath: string; // 분류된 경로 (기관/문서유형)
+  originalFolder: string; // 원본 폴더 경로
   confidence: number;
   changeDate: string;
   changeType: 'created' | 'updated' | 'deleted';
   previousCategory?: string;
+  agency?: string;
+  documentType?: string;
 }
 
 interface FolderNode {
@@ -25,278 +28,40 @@ export function ChangeHistory() {
   const [filterType, setFilterType] = useState<string>('all');
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null); // 선택된 최상위 폴더
   const [viewMode, setViewMode] = useState<'cards' | 'tree'>('cards'); // 카드 보기 vs 트리 보기
+  const [historyData, setHistoryData] = useState<HistoryItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // 샘플 데이터 - 계층적 폴더 구조 확인용
-  const historyData: HistoryItem[] = [
-    // 재무보고서 - 다양한 하위 폴더
-    {
-      id: '1',
-      fileName: '2024년_1분기_재무보고서.pdf',
-      fullPath: '재무보고서/분기별/2024/Q1/2024년_1분기_재무보고서.pdf',
-      confidence: 95,
-      changeDate: '2024-09-12 14:23:15',
-      changeType: 'created'
-    },
-    {
-      id: '2',
-      fileName: '2024년_2분기_재무보고서.pdf',
-      fullPath: '재무보고서/분기별/2024/Q2/2024년_2분기_재무보고서.pdf',
-      confidence: 93,
-      changeDate: '2024-09-12 14:23:10',
-      changeType: 'created'
-    },
-    {
-      id: '3',
-      fileName: '2023년_4분기_재무보고서.pdf',
-      fullPath: '재무보고서/분기별/2023/Q4/2023년_4분기_재무보고서.pdf',
-      confidence: 94,
-      changeDate: '2024-09-12 14:23:08',
-      changeType: 'created'
-    },
-    {
-      id: '4',
-      fileName: '2024년_연간_재무보고서.pdf',
-      fullPath: '재무보고서/연간/2024/2024년_연간_재무보고서.pdf',
-      confidence: 96,
-      changeDate: '2024-09-12 14:23:05',
-      changeType: 'created'
-    },
-    {
-      id: '5',
-      fileName: '2023년_연간_재무보고서.pdf',
-      fullPath: '재무보고서/연간/2023/2023년_연간_재무보고서.pdf',
-      confidence: 97,
-      changeDate: '2024-09-12 14:23:00',
-      changeType: 'created'
-    },
-    {
-      id: '6',
-      fileName: '감사보고서_2024.pdf',
-      fullPath: '재무보고서/감사/2024/감사보고서_2024.pdf',
-      confidence: 92,
-      changeDate: '2024-09-12 14:22:55',
-      changeType: 'created'
-    },
+  // API에서 변경이력 가져오기
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/history/list?limit=1000', {
+          credentials: 'include'
+        });
 
-    // 인사관리 - 여러 계층
-    {
-      id: '7',
-      fileName: '신입사원_채용공고_2024.pdf',
-      fullPath: '인사관리/채용/신입/공고/신입사원_채용공고_2024.pdf',
-      confidence: 88,
-      changeDate: '2024-09-12 14:22:48',
-      changeType: 'created',
-    },
-    {
-      id: '8',
-      fileName: '신입사원_면접평가표.pdf',
-      fullPath: '인사관리/채용/신입/평가/신입사원_면접평가표.pdf',
-      confidence: 90,
-      changeDate: '2024-09-12 14:22:45',
-      changeType: 'created'
-    },
-    {
-      id: '9',
-      fileName: '경력사원_채용공고_2024.pdf',
-      fullPath: '인사관리/채용/경력/공고/경력사원_채용공고_2024.pdf',
-      confidence: 90,
-      changeDate: '2024-09-12 14:22:40',
-      changeType: 'created'
-    },
-    {
-      id: '10',
-      fileName: '인사고과_평가표_2024.pdf',
-      fullPath: '인사관리/평가/연간평가/2024/인사고과_평가표_2024.pdf',
-      confidence: 91,
-      changeDate: '2024-09-12 14:22:30',
-      changeType: 'created'
-    },
-    {
-      id: '11',
-      fileName: '승진심사_자료.pdf',
-      fullPath: '인사관리/평가/승진심사/2024/승진심사_자료.pdf',
-      confidence: 89,
-      changeDate: '2024-09-12 14:22:25',
-      changeType: 'created'
-    },
-    {
-      id: '12',
-      fileName: '급여명세서_양식.pdf',
-      fullPath: '인사관리/급여/양식/급여명세서_양식.pdf',
-      confidence: 95,
-      changeDate: '2024-09-12 14:22:20',
-      changeType: 'created'
-    },
+        const data = await response.json();
 
-    // 마케팅기획
-    {
-      id: '13',
-      fileName: '마케팅_전략_기획안_Q3.pdf',
-      fullPath: '마케팅기획/전략/분기별/Q3/마케팅_전략_기획안_Q3.pdf',
-      previousCategory: '기획관리',
-      confidence: 72,
-      changeDate: '2024-09-12 14:20:33',
-      changeType: 'updated'
-    },
-    {
-      id: '14',
-      fileName: '연간_마케팅_전략.pdf',
-      fullPath: '마케팅기획/전략/연간/2024/연간_마케팅_전략.pdf',
-      confidence: 86,
-      changeDate: '2024-09-12 14:20:28',
-      changeType: 'created'
-    },
-    {
-      id: '15',
-      fileName: 'SNS_마케팅_캠페인.pdf',
-      fullPath: '마케팅기획/캠페인/디지털/SNS/SNS_마케팅_캠페인.pdf',
-      confidence: 85,
-      changeDate: '2024-09-12 14:20:15',
-      changeType: 'created'
-    },
-    {
-      id: '16',
-      fileName: '이메일_마케팅_가이드.pdf',
-      fullPath: '마케팅기획/캠페인/디지털/이메일/이메일_마케팅_가이드.pdf',
-      confidence: 83,
-      changeDate: '2024-09-12 14:20:10',
-      changeType: 'created'
-    },
-    {
-      id: '17',
-      fileName: 'TV광고_기획안.pdf',
-      fullPath: '마케팅기획/캠페인/오프라인/TV광고/TV광고_기획안.pdf',
-      confidence: 88,
-      changeDate: '2024-09-12 14:20:05',
-      changeType: 'created'
-    },
+        if (data.success && data.history) {
+          setHistoryData(data.history);
+        }
+      } catch (error) {
+        console.error('❌ 변경이력 로드 실패:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    // 경영관리 - 깊은 계층 구조
-    {
-      id: '18',
-      fileName: '회의록_경영전략회의_20240910.pdf',
-      fullPath: '경영관리/회의록/전략회의/2024/09/회의록_경영전략회의_20240910.pdf',
-      confidence: 92,
-      changeDate: '2024-09-12 14:18:12',
-      changeType: 'created'
-    },
-    {
-      id: '19',
-      fileName: '회의록_경영전략회의_20240903.pdf',
-      fullPath: '경영관리/회의록/전략회의/2024/09/회의록_경영전략회의_20240903.pdf',
-      confidence: 91,
-      changeDate: '2024-09-12 14:18:10',
-      changeType: 'created'
-    },
-    {
-      id: '20',
-      fileName: '회의록_임원회의_20240905.pdf',
-      fullPath: '경영관리/회의록/임원회의/2024/09/회의록_임원회의_20240905.pdf',
-      confidence: 94,
-      changeDate: '2024-09-12 14:18:05',
-      changeType: 'created'
-    },
-    {
-      id: '21',
-      fileName: '회의록_부서장회의_20240908.pdf',
-      fullPath: '경영관리/회의록/부서장회의/2024/09/회의록_부서장회의_20240908.pdf',
-      confidence: 90,
-      changeDate: '2024-09-12 14:18:02',
-      changeType: 'created'
-    },
-    {
-      id: '22',
-      fileName: '월간_경영_보고서_9월.pdf',
-      fullPath: '경영관리/보고서/월간/2024/09/월간_경영_보고서_9월.pdf',
-      confidence: 89,
-      changeDate: '2024-09-12 14:18:00',
-      changeType: 'created'
-    },
-    {
-      id: '23',
-      fileName: '월간_경영_보고서_8월.pdf',
-      fullPath: '경영관리/보고서/월간/2024/08/월간_경영_보고서_8월.pdf',
-      confidence: 88,
-      changeDate: '2024-09-12 14:17:55',
-      changeType: 'created'
-    },
-    {
-      id: '24',
-      fileName: '분기_경영_보고서_Q2.pdf',
-      fullPath: '경영관리/보고서/분기별/2024/Q2/분기_경영_보고서_Q2.pdf',
-      confidence: 93,
-      changeDate: '2024-09-12 14:17:50',
-      changeType: 'created'
-    },
+    fetchHistory();
+  }, []);
 
-    // 프로젝트관리
-    {
-      id: '25',
-      fileName: '프로젝트_제안서_2024.pdf',
-      fullPath: '프로젝트관리/제안서/내부/2024/프로젝트_제안서_2024.pdf',
-      previousCategory: '일반문서',
-      confidence: 85,
-      changeDate: '2024-09-12 13:45:22',
-      changeType: 'updated'
-    },
-    {
-      id: '26',
-      fileName: '고객사_제안서.pdf',
-      fullPath: '프로젝트관리/제안서/외부/고객사A/고객사_제안서.pdf',
-      confidence: 87,
-      changeDate: '2024-09-12 13:45:18',
-      changeType: 'created'
-    },
-    {
-      id: '27',
-      fileName: '프로젝트_진행상황_보고.pdf',
-      fullPath: '프로젝트관리/진행보고/주간/2024/9월/프로젝트_진행상황_보고.pdf',
-      confidence: 87,
-      changeDate: '2024-09-12 13:45:10',
-      changeType: 'created'
-    },
-    {
-      id: '28',
-      fileName: '프로젝트_완료보고서.pdf',
-      fullPath: '프로젝트관리/완료보고/2024/프로젝트A/프로젝트_완료보고서.pdf',
-      confidence: 91,
-      changeDate: '2024-09-12 13:45:05',
-      changeType: 'created'
-    },
-
-    // 기술개발
-    {
-      id: '29',
-      fileName: '기술개발_계획서.pdf',
-      fullPath: '기술개발/계획/연간/2024/기술개발_계획서.pdf',
-      confidence: 84,
-      changeDate: '2024-09-12 13:40:00',
-      changeType: 'created'
-    },
-    {
-      id: '30',
-      fileName: '특허출원_신청서.pdf',
-      fullPath: '기술개발/특허/출원/2024/특허출원_신청서.pdf',
-      confidence: 92,
-      changeDate: '2024-09-12 13:39:55',
-      changeType: 'created'
-    },
-    {
-      id: '31',
-      fileName: '연구개발_보고서.pdf',
-      fullPath: '기술개발/연구/프로젝트A/보고서/연구개발_보고서.pdf',
-      confidence: 88,
-      changeDate: '2024-09-12 13:39:50',
-      changeType: 'created'
-    }
-  ];
-
-  // 경로를 기반으로 폴더 트리 구조 생성
+  // 경로를 기반으로 폴더 트리 구조 생성 (분류된 경로 기준)
   const buildFolderTree = (): FolderNode[] => {
     const root: { [key: string]: any } = {};
 
     historyData.forEach(item => {
-      const parts = item.fullPath.split('/');
+      // 분류된 경로(fullPath)를 사용하여 폴더 트리 구성
+      const folderPath = item.fullPath;
+      const parts = folderPath.split('/');
       const fileName = parts.pop()!; // 파일명 제거
 
       let current = root;
@@ -352,12 +117,13 @@ export function ChangeHistory() {
 
   const folderTree = buildFolderTree();
 
-  // 최상위 폴더와 파일 개수 추출
+  // 최상위 폴더와 파일 개수 추출 (분류된 경로 기준)
   const getTopLevelFolders = () => {
     const folders: { [key: string]: number } = {};
 
     historyData.forEach(item => {
-      const topFolder = item.fullPath.split('/')[0];
+      const folderPath = item.fullPath;
+      const topFolder = folderPath.split('/')[0];
       folders[topFolder] = (folders[topFolder] || 0) + 1;
     });
 
@@ -476,8 +242,15 @@ export function ChangeHistory() {
               }}
             >
               <div style={{ width: '16px' }} />
-              <FileText style={{ width: '16px', height: '16px', color: '#666666', flexShrink: 0 }} />
-              <div style={{ flex: 1, fontSize: '12px', fontFamily: 'Roboto', color: '#333333' }}>
+              <FileText style={{ width: '16px', height: '16px', color: file.changeType === 'deleted' ? '#DC2626' : '#666666', flexShrink: 0 }} />
+              <div style={{
+                flex: 1,
+                fontSize: '12px',
+                fontFamily: 'Roboto',
+                color: file.changeType === 'deleted' ? '#999999' : '#333333',
+                textDecoration: file.changeType === 'deleted' ? 'line-through' : 'none',
+                opacity: file.changeType === 'deleted' ? 0.6 : 1
+              }}>
                 {file.fileName}
               </div>
               <div style={{ marginRight: '8px' }}>
@@ -506,6 +279,53 @@ export function ChangeHistory() {
       );
     });
   };
+
+  // 로딩 중
+  if (isLoading) {
+    return (
+      <div style={{ width: '1440px', height: '900px', position: 'relative', background: '#F9F9F9', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ color: '#666666', fontSize: '14px', fontFamily: 'Roboto', fontWeight: '600', marginBottom: '8px' }}>
+            변경이력 로딩 중...
+          </div>
+          <div style={{ color: '#999999', fontSize: '12px', fontFamily: 'Roboto', fontWeight: '400' }}>
+            잠시만 기다려주세요
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 데이터가 없을 때
+  if (historyData.length === 0) {
+    return (
+      <div style={{ width: '1440px', height: '900px', position: 'relative', background: '#F9F9F9', overflow: 'hidden' }}>
+        <div style={{ width: '1440px', height: '900px', left: '0px', top: '0px', position: 'absolute' }}>
+          <div style={{ width: '1440px', height: '844px', left: '0px', top: '56px', position: 'absolute' }}>
+            <div style={{ width: '1384px', height: '844px', left: '56px', top: '0px', position: 'absolute', background: 'white' }}>
+              <div style={{ left: '24px', top: '25px', position: 'absolute' }}>
+                <span style={{ color: '#666666', fontSize: '12px', fontFamily: 'Roboto', fontWeight: '600', lineHeight: '16px' }}>카테고리 분류 &gt;</span>
+                <span style={{ color: 'black', fontSize: '12px', fontFamily: 'Roboto', fontWeight: '600', lineHeight: '16px' }}> </span>
+                <span style={{ color: '#0070F3', fontSize: '12px', fontFamily: 'Roboto', fontWeight: '600', lineHeight: '16px' }}>변경이력</span>
+              </div>
+
+              <div style={{ width: '1336px', height: '800px', left: '24px', top: '48px', position: 'absolute', background: 'white', borderRadius: '6px', border: '1px #E5E5E5 solid', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '16px' }}>
+                <Folder style={{ width: '64px', height: '64px', color: '#CCCCCC' }} />
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ color: '#666666', fontSize: '14px', fontFamily: 'Roboto', fontWeight: '600', marginBottom: '8px' }}>
+                    아직 변경이력이 없습니다
+                  </div>
+                  <div style={{ color: '#999999', fontSize: '12px', fontFamily: 'Roboto', fontWeight: '400' }}>
+                    문서를 분류하면 여기에 이력이 표시됩니다
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ width: '1440px', height: '900px', position: 'relative', background: '#F9F9F9', overflow: 'hidden' }}>
@@ -552,7 +372,7 @@ export function ChangeHistory() {
                     {viewMode === 'cards' ? '카테고리 폴더' : selectedFolder}
                   </div>
                   <div style={{ color: '#999999', fontSize: '12px', fontFamily: 'Roboto', fontWeight: '400' }}>
-                    (총 {viewMode === 'cards' ? historyData.length : historyData.filter(item => item.fullPath.startsWith(selectedFolder + '/')).length}개 문서)
+                    (총 {viewMode === 'cards' ? historyData.length : historyData.filter(item => (item.originalFolder || item.fullPath).startsWith(selectedFolder + '/')).length}개 문서)
                   </div>
                 </div>
 
@@ -736,13 +556,23 @@ export function ChangeHistory() {
                     {/* 상세 내용 */}
                     <div style={{ width: '514px', height: '748px', left: '0px', top: '50px', position: 'absolute', padding: '24px', overflowY: 'auto' }}>
 
-                      {/* 파일 경로 */}
+                      {/* 원본 폴더 경로 */}
                       <div style={{ marginBottom: '24px', padding: '12px', background: '#F9F9F9', borderRadius: '6px' }}>
                         <div style={{ color: '#999999', fontSize: '10px', fontFamily: 'Roboto', fontWeight: '400', marginBottom: '6px' }}>
-                          파일 경로
+                          원본 폴더 경로
                         </div>
                         <div style={{ color: '#666666', fontSize: '11px', fontFamily: 'Roboto', fontWeight: '400', wordBreak: 'break-all' }}>
-                          {selectedFileData.fullPath}
+                          {selectedFileData.originalFolder || selectedFileData.fullPath}
+                        </div>
+                      </div>
+
+                      {/* 분류된 경로 */}
+                      <div style={{ marginBottom: '24px', padding: '12px', background: '#EEF2FF', borderRadius: '6px' }}>
+                        <div style={{ color: '#999999', fontSize: '10px', fontFamily: 'Roboto', fontWeight: '400', marginBottom: '6px' }}>
+                          분류된 경로 (기관/문서유형)
+                        </div>
+                        <div style={{ color: '#4338CA', fontSize: '11px', fontFamily: 'Roboto', fontWeight: '600', wordBreak: 'break-all' }}>
+                          {selectedFileData.agency || 'Unknown'} / {selectedFileData.documentType || 'Unknown'}
                         </div>
                       </div>
 
@@ -857,9 +687,10 @@ export function ChangeHistory() {
                           AI 분류 결과
                         </div>
                         <div style={{ color: '#666666', fontSize: '11px', fontFamily: 'Roboto', fontWeight: '400', lineHeight: '18px' }}>
-                          이 문서는 내용 분석 결과 "{selectedFileData.fullPath.split('/').slice(0, -1).join(' > ')}" 경로로 분류되었습니다.
-                          분류 신뢰도는 {selectedFileData.confidence}%입니다.
-                          {selectedFileData.previousCategory && ` 이전 "${selectedFileData.previousCategory}" 카테고리에서 재분류되었습니다.`}
+                          원본 경로: "{selectedFileData.originalFolder || selectedFileData.fullPath}"<br/>
+                          AI 분류 결과: "{selectedFileData.agency || 'Unknown'}" 기관, "{selectedFileData.documentType || 'Unknown'}" 문서유형으로 분류되었습니다.<br/>
+                          평균 분류 신뢰도는 {selectedFileData.confidence}%입니다.
+                          {selectedFileData.previousCategory && `<br/>이전 "${selectedFileData.previousCategory}" 카테고리에서 재분류되었습니다.`}
                         </div>
                       </div>
 
